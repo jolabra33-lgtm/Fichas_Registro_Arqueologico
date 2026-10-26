@@ -1,0 +1,1219 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#16625E">
+  <title>Guía Práctica de Uso — Registro de Excavación Arqueológica V2</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #ECEFED;
+      --surface: #FFFFFF;
+      --surface-2: #F4F6F5;
+      --surface-3: #E8ECEA;
+      --ink: #162024;
+      --ink-2: #47565B;
+      --ink-3: #74848A;
+      --line: #D5DCD9;
+      --line-2: #BFC9C6;
+
+      --accent: #16625E;
+      --accent-hover: #114F4C;
+      --accent-soft: #DCEDEA;
+      --accent-ink: #FFFFFF;
+
+      --c-estrato: #9A680F;
+      --c-corte: #23659A;
+      --c-estructura: #A03C29;
+      --c-esqueleto: #6B4A8A;
+      --c-muraria: #33578B;
+
+      --ok: #2A7A49;
+      --ok-soft: #E4F4EA;
+      --warn: #9F680C;
+      --warn-soft: #FEF4E2;
+      --err: #B0342A;
+      --err-soft: #FDEAE8;
+
+      --f-display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+      --f-body: 'Barlow', system-ui, -apple-system, sans-serif;
+      --f-mono: 'IBM Plex Mono', monospace;
+
+      --r: 8px;
+      --shadow: 0 1px 3px rgba(18,32,36,0.06), 0 6px 18px rgba(18,32,36,0.06);
+    }
+
+    [data-theme="dark"] {
+      --bg: #0F1618;
+      --surface: #162023;
+      --surface-2: #1B282B;
+      --surface-3: #223236;
+      --ink: #E3EBE9;
+      --ink-2: #A3B4B5;
+      --ink-3: #7B8E91;
+      --line: #2B3C40;
+      --line-2: #3A4E53;
+      --accent: #52B5AE;
+      --accent-hover: #6BC4BE;
+      --accent-soft: #1B3636;
+      --accent-ink: #0B1A1B;
+      --ok-soft: #162C20;
+      --warn-soft: #2E230E;
+      --err-soft: #301715;
+    }
+
+    [data-theme="solar"] {
+      --bg: #FFFFFF;
+      --surface: #FFFFFF;
+      --surface-2: #F0F0F0;
+      --surface-3: #E4E4E4;
+      --ink: #000000;
+      --ink-2: #222222;
+      --ink-3: #444444;
+      --line: #777777;
+      --line-2: #555555;
+      --accent: #004D40;
+      --accent-soft: #E0F2F1;
+      --accent-ink: #FFFFFF;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; font-size: 16px; }
+    body {
+      font-family: var(--f-body);
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* BARRA SUPERIOR */
+    #topbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      height: 60px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      box-shadow: 0 1px 3px rgba(18,32,36,0.06);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--f-display);
+      font-size: 21px;
+      font-weight: 700;
+      color: var(--accent);
+      text-decoration: none;
+      letter-spacing: 0.4px;
+    }
+    .brand svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2; }
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .btn-action {
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-radius: var(--r);
+      color: var(--ink);
+      font-family: var(--f-body);
+      font-size: 13.5px;
+      font-weight: 500;
+      padding: 6px 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .btn-action:hover { background: var(--surface-3); border-color: var(--line-2); }
+    .btn-action.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+    .btn-action.primary:hover { background: var(--accent-hover); }
+
+    /* LAYOUT CON SIDEBAR */
+    #layout {
+      display: flex;
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+
+    /* SIDEBAR */
+    #sidebar {
+      width: 310px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 60px;
+      height: calc(100vh - 60px);
+      overflow-y: auto;
+      padding: 24px 16px 40px;
+      border-right: 1px solid var(--line);
+      background: var(--surface);
+    }
+    .sidebar-title {
+      font-family: var(--f-display);
+      font-size: 13.5px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--ink-3);
+      font-weight: 700;
+      margin-bottom: 12px;
+      padding-left: 8px;
+    }
+    .sidebar-search {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--r);
+      background: var(--surface-2);
+      color: var(--ink);
+      font-family: var(--f-body);
+      font-size: 13px;
+      margin-bottom: 16px;
+      outline: none;
+    }
+    .sidebar-search:focus { border-color: var(--accent); background: var(--surface); }
+    .nav-list { list-style: none; display: flex; flex-direction: column; gap: 3px; }
+    .nav-item a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: var(--r);
+      text-decoration: none;
+      color: var(--ink-2);
+      font-size: 13.5px;
+      font-weight: 500;
+      line-height: 1.35;
+      transition: all 0.15s;
+    }
+    .nav-item a:hover { background: var(--surface-2); color: var(--ink); }
+    .nav-item a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+    .nav-num {
+      font-family: var(--f-mono);
+      font-size: 11px;
+      color: var(--ink-3);
+      background: var(--surface-2);
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+
+    /* CONTENIDO PRINCIPAL */
+    #content {
+      flex: 1;
+      min-width: 0;
+      padding: 36px 48px 100px;
+    }
+
+    /* HERO */
+    .hero {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 36px 40px;
+      margin-bottom: 36px;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 5px;
+      background: linear-gradient(90deg, var(--accent), var(--c-estrato), var(--c-estructura));
+    }
+    .hero-badge {
+      display: inline-block;
+      font-family: var(--f-mono);
+      font-size: 11.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      padding: 3px 9px;
+      border-radius: 4px;
+      margin-bottom: 12px;
+    }
+    .hero h1 {
+      font-family: var(--f-display);
+      font-size: 38px;
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1.15;
+      margin-bottom: 12px;
+    }
+    .hero p.lead {
+      font-size: 17px;
+      color: var(--ink-2);
+      max-width: 820px;
+      line-height: 1.55;
+      margin-bottom: 20px;
+    }
+    .hero-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+    }
+
+    /* SECCIONES Y TARJETAS */
+    .section-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 32px 36px;
+      margin-bottom: 36px;
+      box-shadow: var(--shadow);
+    }
+    .section-card:target {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+    .section-header {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      border-bottom: 2px solid var(--surface-3);
+      padding-bottom: 14px;
+      margin-bottom: 24px;
+    }
+    .section-num {
+      font-family: var(--f-display);
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .section-title h2 {
+      font-family: var(--f-display);
+      font-size: 27px;
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1.2;
+    }
+    .section-desc { font-size: 14px; color: var(--ink-3); margin-top: 2px; }
+
+    h3 {
+      font-family: var(--f-display);
+      font-size: 21px;
+      font-weight: 700;
+      color: var(--ink);
+      margin: 28px 0 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    h4 {
+      font-family: var(--f-body);
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--ink);
+      margin: 20px 0 8px;
+    }
+    p { margin-bottom: 14px; font-size: 15px; color: var(--ink-2); }
+    ul, ol { margin: 10px 0 16px 22px; color: var(--ink-2); font-size: 15px; }
+    li { margin-bottom: 6px; }
+
+    /* UI MOCKUPS / BOTONES SIMULADOS */
+    .ui-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      font-family: var(--f-mono);
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--ink);
+      white-space: nowrap;
+    }
+    .ui-pill.primary { background: var(--accent); color: #FFF; border-color: var(--accent); }
+    .ui-pill.estrato { background: var(--c-estrato); color: #FFF; border-color: var(--c-estrato); }
+    .ui-pill.corte { background: var(--c-corte); color: #FFF; border-color: var(--c-corte); }
+    .ui-pill.estructura { background: var(--c-estructura); color: #FFF; border-color: var(--c-estructura); }
+    .ui-pill.esqueleto { background: var(--c-esqueleto); color: #FFF; border-color: var(--c-esqueleto); }
+    .ui-pill.muraria { background: var(--c-muraria); color: #FFF; border-color: var(--c-muraria); }
+
+    /* CAJAS DE ALERTA Y TIPS */
+    .callout {
+      border-left: 4px solid var(--accent);
+      background: var(--surface-2);
+      border-radius: 0 var(--r) var(--r) 0;
+      padding: 14px 18px;
+      margin: 20px 0;
+    }
+    .callout.tip { border-color: var(--ok); background: var(--ok-soft); }
+    .callout.warn { border-color: var(--warn); background: var(--warn-soft); }
+    .callout.danger { border-color: var(--err); background: var(--err-soft); }
+    .callout-title {
+      font-weight: 700;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+      color: var(--ink);
+    }
+    .callout p:last-child { margin-bottom: 0; font-size: 14px; }
+
+    /* PASOS TUTORIAL (STEP CARDS) */
+    .step-card {
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-radius: var(--r);
+      padding: 20px 24px;
+      margin: 18px 0;
+      position: relative;
+    }
+    .step-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--accent);
+      color: #FFF;
+      font-family: var(--f-mono);
+      font-size: 12px;
+      font-weight: 700;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+    .step-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    /* TABLAS ESTILIZADAS */
+    .table-box {
+      overflow-x: auto;
+      margin: 20px 0;
+      border: 1px solid var(--line);
+      border-radius: var(--r);
+    }
+    table.guide-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      text-align: left;
+    }
+    table.guide-table th {
+      background: var(--accent);
+      color: #FFF;
+      font-family: var(--f-display);
+      font-size: 15px;
+      font-weight: 600;
+      padding: 10px 14px;
+    }
+    table.guide-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--line);
+      color: var(--ink-2);
+      vertical-align: top;
+    }
+    table.guide-table tr:nth-child(even) td { background: var(--surface-2); }
+    table.guide-table tr:hover td { background: var(--accent-soft); }
+
+    /* DIAGRAMAS SVG */
+    .svg-box {
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-radius: var(--r);
+      padding: 20px;
+      margin: 20px 0;
+      text-align: center;
+    }
+    .svg-caption {
+      font-size: 13px;
+      color: var(--ink-3);
+      font-style: italic;
+      margin-top: 10px;
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 1024px) {
+      #sidebar { display: none; }
+      #content { padding: 20px 18px 80px; }
+      .hero { padding: 24px; }
+      .hero h1 { font-size: 30px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- BARRA SUPERIOR -->
+  <header id="topbar">
+    <a href="#" class="brand">
+      <svg viewBox="0 0 24 24"><path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M19.07 4.93L4.93 19.07"/></svg>
+      <span>GUÍA DE USO · REGISTRO ARQUEOLÓGICO V2</span>
+    </a>
+    <div class="topbar-actions">
+      <a href="index.html" class="btn-action primary" target="_blank">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+        Abrir Aplicación V2
+      </a>
+      <button class="btn-action" onclick="cycleTheme()">
+        <span id="theme-btn-label">🌓 Tema</span>
+      </button>
+      <button class="btn-action" onclick="window.print()">
+        🖨️ Imprimir
+      </button>
+    </div>
+  </header>
+
+  <div id="layout">
+    <!-- SIDEBAR DE NAVEGACIÓN -->
+    <aside id="sidebar">
+      <div class="sidebar-title">Índice de la Guía</div>
+      <input type="text" class="sidebar-search" id="guideSearch" placeholder="Buscar función o ejemplo..." oninput="filterNav()">
+      <ul class="nav-list" id="navList">
+        <li class="nav-item"><a href="#sec-1"><span class="nav-num">01</span><span>Inicio e Instalación PWA</span></a></li>
+        <li class="nav-item"><a href="#sec-2"><span class="nav-num">02</span><span>Configuración del Proyecto</span></a></li>
+        <li class="nav-item"><a href="#sec-3"><span class="nav-num">03</span><span>El Panel de Control (Dashboard)</span></a></li>
+        <li class="nav-item"><a href="#sec-4"><span class="nav-num">04</span><span>Ejemplo 1: UE Positiva (Estrato)</span></a></li>
+        <li class="nav-item"><a href="#sec-5"><span class="nav-num">05</span><span>Ejemplo 2: UE Negativa (Corte/Fosa)</span></a></li>
+        <li class="nav-item"><a href="#sec-6"><span class="nav-num">06</span><span>Ejemplo 3: Estructuras y Muros</span></a></li>
+        <li class="nav-item"><a href="#sec-7"><span class="nav-num">07</span><span>Ejemplo 4: Enterramientos y Esqueletos</span></a></li>
+        <li class="nav-item"><a href="#sec-8"><span class="nav-num">08</span><span>Matriz de Harris Interactiva</span></a></li>
+        <li class="nav-item"><a href="#sec-9"><span class="nav-num">09</span><span>Inventario de Materiales & QR</span></a></li>
+        <li class="nav-item"><a href="#sec-10"><span class="nav-num">10</span><span>Muestreo Científico (C14/OSL)</span></a></li>
+        <li class="nav-item"><a href="#sec-11"><span class="nav-num">11</span><span>Herramientas de Campo Móviles</span></a></li>
+        <li class="nav-item"><a href="#sec-12"><span class="nav-num">12</span><span>Fusión Inteligente (Smart Merge)</span></a></li>
+        <li class="nav-item"><a href="#sec-13"><span class="nav-num">13</span><span>Exportación: Word, PDF y QGIS</span></a></li>
+        <li class="nav-item"><a href="#sec-14"><span class="nav-num">14</span><span>Preguntas Frecuentes & Consejos</span></a></li>
+      </ul>
+    </aside>
+
+    <!-- CONTENIDO -->
+    <main id="content">
+
+      <!-- HERO -->
+      <section class="hero">
+        <span class="hero-badge">Manual Práctico de Usuario · Versión 2</span>
+        <h1>Cómo Usar la Aplicación de Registro Arqueológico desde Cero</h1>
+        <p class="lead">
+          Guía paso a paso ilustrada con ejemplos prácticos reales: desde la instalación en tu tableta de campo y la creación de tu primera Unidad Estratigráfica, hasta la gestión de la Matriz de Harris, el etiquetado QR de materiales y la generación de la Memoria Técnica en Word (.docx).
+        </p>
+        <div class="hero-links">
+          <span><strong>Archivo de la app:</strong> <a href="index.html" target="_blank" style="color:var(--accent);font-weight:600;">index.html / Registro_de_Excavacion_V2.html</a></span>
+          <span><strong>Modo de funcionamiento:</strong> 100% Offline (sin conexión requerida)</span>
+        </div>
+      </section>
+
+      <!-- SECCIÓN 1: INICIO E INSTALACIÓN -->
+      <article class="section-card" id="sec-1">
+        <div class="section-header">
+          <div class="section-num">01</div>
+          <div class="section-title">
+            <h2>Inicio e Instalación como PWA en Tableta o PC</h2>
+            <div class="section-desc">Cómo abrir la aplicación, instalarla como app independiente y verificar el funcionamiento 100% offline.</div>
+          </div>
+        </div>
+
+        <p>
+          La aplicación <strong>Registro de Excavación V2</strong> está diseñada con tecnología <em>Progressive Web App</em> (PWA). Esto significa que no necesitas instalarla desde ninguna tienda de aplicaciones (Play Store ni App Store), no requiere ningún servidor externo y <strong>funciona al 100% sin conexión a internet en mitad del campo</strong>.
+        </p>
+
+        <h3>Formas de Ejecutar la Aplicación</h3>
+        <div class="step-card">
+          <div class="step-title"><span class="step-badge">A</span> Opción Directa (Archivo local)</div>
+          <p>
+            Haz doble clic sobre el archivo <span class="ui-pill">index.html</span> (o accede a través de tu enlace de GitHub Pages). Se abrirá directamente en tu navegador habitual (Chrome, Edge, Safari, Firefox). Todos los datos se guardarán de forma permanente en la base de datos local (IndexedDB) de tu navegador.
+          </p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-badge">B</span> Instalación como Aplicación Nativa (Recomendado para tabletas de campo)</div>
+          <p>
+            Al abrir la aplicación, verás en la barra superior o en la barra de direcciones del navegador un icono con forma de pantalla o el botón <span class="ui-pill primary">📲 Instalar App</span>.
+          </p>
+          <ul>
+            <li><strong>En Android / Tableta:</strong> Pulsa en el menú de tres puntos de Chrome y selecciona <em>«Añadir a la pantalla de inicio»</em> o <em>«Instalar aplicación»</em>. Se creará un icono con el logotipo de la aplicación en el escritorio de tu tableta que se abrirá a pantalla completa sin barra de navegación.</li>
+            <li><strong>En iPad / iOS:</strong> En Safari, pulsa el botón de Compartir (icono de cuadrado con flecha hacia arriba) y elige <em>«Añadir a la pantalla de inicio»</em>.</li>
+            <li><strong>En Windows / Mac:</strong> En Chrome o Edge, pulsa el icono de instalación que aparece a la derecha en la barra de direcciones.</li>
+          </ul>
+        </div>
+
+        <div class="callout tip">
+          <div class="callout-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            Indicador de Red en Tiempo Real
+          </div>
+          <p>
+            En la barra superior de la app verás una pastilla que indica <span class="ui-pill" style="color:var(--ok);border-color:var(--ok);">● En línea</span> o <span class="ui-pill" style="color:var(--warn);border-color:var(--warn);">○ Sin conexión</span>. La app funciona exactamente igual en ambos estados. No pierdes ninguna funcionalidad por no tener cobertura.
+          </p>
+        </div>
+      </article>
+
+      <!-- SECCIÓN 2: CONFIGURACIÓN DEL PROYECTO -->
+      <article class="section-card" id="sec-2">
+        <div class="section-header">
+          <div class="section-num">02</div>
+          <div class="section-title">
+            <h2>Configuración del Proyecto de Excavación</h2>
+            <div class="section-desc">Cómo dar de alta tu yacimiento, definir las fases estratigráficas y los miembros del equipo.</div>
+          </div>
+        </div>
+
+        <p>
+          La primera vez que abras la aplicación verás cargado el <strong>Proyecto de ejemplo</strong>. Este proyecto contiene datos inventados para que puedas tocar y probar todas las vistas. Cuando vayas a registrar tu propia excavación, sigue estos pasos:
+        </p>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-badge">1</span> Crear un nuevo proyecto limpio</div>
+          <p>
+            Ve a la barra lateral izquierda y pulsa en <span class="ui-pill">Proyecto y datos</span>. Desplázate hacia abajo hasta la sección <em>Proyectos</em> y pulsa el botón <span class="ui-pill primary">+ Nuevo proyecto</span>. Escribe el nombre de tu intervención (por ejemplo: <code>Excavación Solar C/ Mayor 12</code>).
+          </p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-badge">2</span> Rellenar los metadatos oficiales del yacimiento</div>
+          <p>En el formulario de <strong>Datos del proyecto</strong>, cumplimenta los campos institucionales:</p>
+          <ul>
+            <li><strong>Acrónimo del yacimiento:</strong> Sigla de 3-5 letras (e.g. <code>SCM26</code>). Esta sigla se autorellenará en cada ficha nueva y en las etiquetas de inventario.</li>
+            <li><strong>Yacimiento / solar:</strong> Nombre completo del emplazamiento.</li>
+            <li><strong>Municipio y Dirección:</strong> Datos geográficos administrativos.</li>
+            <li><strong>Promotor y Dirección Arqueológica:</strong> Nombre de la empresa o administración y directores técnicos autorizados.</li>
+            <li><strong>N.º de expediente o permiso:</strong> Código oficial de la autorización de la Dirección General de Patrimonio (e.g. <code>ARQ-2026/045</code>).</li>
+            <li><strong>Campaña o año:</strong> Año en curso (e.g. <code>2026</code>).</li>
+            <li><strong>Autor/a por defecto:</strong> Tu nombre o iniciales para que se asigne automáticamente a cada ficha que crees.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-badge">3</span> Definir Fases Estratigráficas y Equipo</div>
+          <p>
+            En la misma pantalla verás el campo <strong>Fases estratigráficas</strong>. Escribe una fase por línea. Estas fases se utilizarán para colorear y agrupar los nodos en la Matriz de Harris:
+          </p>
+          <pre style="background:var(--surface-3);padding:12px;border-radius:6px;font-family:var(--f-mono);font-size:13px;margin:8px 0;">Fase I · Sustrato y ocupación originaria
+Fase II · Estructuras romanas altoimperiales
+Fase III · Necrópolis visigoda
+Fase IV · Colmatación y abandono moderno</pre>
+          <p>
+            En el campo <strong>Equipo</strong>, añade los nombres de los técnicos y peones (uno por línea). Al rellenar cualquier campo de autor en una ficha, la app te sugerirá estos nombres con un solo clic.
+          </p>
+        </div>
+      </article>
+
+      <!-- SECCIÓN 3: EL PANEL DE CONTROL -->
+      <article class="section-card" id="sec-3">
+        <div class="section-header">
+          <div class="section-num">03</div>
+          <div class="section-title">
+            <h2>El Panel de Control (Dashboard de Excavación)</h2>
+            <div class="section-desc">Métricas en tiempo real, control de calidad del registro y copias de seguridad de fin de jornada.</div>
+          </div>
+        </div>
+
+        <p>
+          Al pulsar en <span class="ui-pill">Panel</span> en la barra lateral, accedes al cuadro de mando integral de la excavación:
+        </p>
+
+        <div class="svg-box">
+          <svg viewBox="0 0 740 190" width="700" height="180">
+            <!-- Tarjetas de estadísticas -->
+            <g transform="translate(15, 15)">
+              <rect width="130" height="75" rx="6" fill="var(--surface)" stroke="var(--line)" />
+              <text x="15" y="28" font-size="11" font-family="var(--f-mono)" fill="var(--ink-3)">UNIDADES</text>
+              <text x="15" y="55" font-size="24" font-family="var(--f-display)" font-weight="bold" fill="var(--accent)">18</text>
+              <text x="15" y="70" font-size="10" font-family="var(--f-body)" fill="var(--ink-2)">estratigráficas</text>
+            </g>
+            <g transform="translate(155, 15)">
+              <rect width="130" height="75" rx="6" fill="var(--surface)" stroke="var(--line)" />
+              <text x="15" y="28" font-size="11" font-family="var(--f-mono)" fill="var(--ink-3)">ESTRATOS</text>
+              <text x="15" y="55" font-size="24" font-family="var(--f-display)" font-weight="bold" fill="var(--c-estrato)">11</text>
+              <text x="15" y="70" font-size="10" font-family="var(--f-body)" fill="var(--ink-2)">positivas y cortes</text>
+            </g>
+            <g transform="translate(295, 15)">
+              <rect width="130" height="75" rx="6" fill="var(--surface)" stroke="var(--line)" />
+              <text x="15" y="28" font-size="11" font-family="var(--f-mono)" fill="var(--ink-3)">ESTRUCTURAS</text>
+              <text x="15" y="55" font-size="24" font-family="var(--f-display)" font-weight="bold" fill="var(--c-estructura)">4</text>
+              <text x="15" y="70" font-size="10" font-family="var(--f-body)" fill="var(--ink-2)">muros y suelos</text>
+            </g>
+            <g transform="translate(435, 15)">
+              <rect width="130" height="75" rx="6" fill="var(--surface)" stroke="var(--line)" />
+              <text x="15" y="28" font-size="11" font-family="var(--f-mono)" fill="var(--ink-3)">ESQUELETOS</text>
+              <text x="15" y="55" font-size="24" font-family="var(--f-display)" font-weight="bold" fill="var(--c-esqueleto)">2</text>
+              <text x="15" y="70" font-size="10" font-family="var(--f-body)" fill="var(--ink-2)">enterramientos</text>
+            </g>
+            <g transform="translate(575, 15)">
+              <rect width="150" height="75" rx="6" fill="var(--surface)" stroke="var(--line)" />
+              <text x="15" y="28" font-size="11" font-family="var(--f-mono)" fill="var(--ink-3)">COMPLETITUD</text>
+              <text x="15" y="55" font-size="24" font-family="var(--f-display)" font-weight="bold" fill="var(--ok)">92%</text>
+              <text x="15" y="70" font-size="10" font-family="var(--f-body)" fill="var(--ink-2)">media campos clave</text>
+            </g>
+
+            <!-- Barra de avance de registro -->
+            <g transform="translate(15, 110)">
+              <rect width="710" height="60" rx="6" fill="var(--surface)" stroke="var(--line)" />
+              <text x="20" y="28" font-size="12" font-family="var(--f-display)" font-weight="bold" fill="var(--ink)">ESTADO DE LAS FICHAS</text>
+              <!-- Barra tricolor -->
+              <rect x="20" y="38" width="400" height="12" rx="3" fill="var(--ok)" />
+              <rect x="420" y="38" width="180" height="12" fill="var(--accent)" />
+              <rect x="600" y="38" width="90" height="12" rx="3" fill="var(--line-2)" />
+              <!-- Leyenda -->
+              <circle cx="250" cy="24" r="4" fill="var(--ok)" /><text x="258" y="28" font-size="11" font-family="var(--f-body)">Revisadas</text>
+              <circle cx="340" cy="24" r="4" fill="var(--accent)" /><text x="348" y="28" font-size="11" font-family="var(--f-body)">Completas</text>
+              <circle cx="430" cy="24" r="4" fill="var(--line-2)" /><text x="438" y="28" font-size="11" font-family="var(--f-body)">Borradores</text>
+            </g>
+          </svg>
+          <div class="svg-caption">Panel de Control: Visión global de la excavación con métricas de avance y completitud técnica.</div>
+        </div>
+
+        <h3>Funciones Clave del Panel</h3>
+        <ul>
+          <li><strong>Métricas de Completitud:</strong> El indicador de porcentaje calcula automáticamente si las fichas tienen rellenos los campos críticos (cotas, descripción, interpretación y relaciones estratigráficas). Si está por debajo del 80%, indica que hay fichas incompletas que requieren atención.</li>
+          <li><strong>Alertas de Control de Calidad:</strong> La sección <em>Control</em> te avisa si existen relaciones contradictorias (por ejemplo, si la UE 4 cubre a la UE 5 pero la UE 5 declara que cubre a la UE 4, o si una ficha no tiene cotas superiores).</li>
+          <li><strong>Copia de Seguridad Rápida:</strong> Un botón prominente <span class="ui-pill primary">Exportar JSON</span> te recuerda si han pasado más de 24 horas desde la última copia de seguridad. <strong>Descarga siempre un JSON al finalizar cada jornada de campo</strong>.</li>
+        </ul>
+      </article>
+
+      <!-- SECCIÓN 4: EJEMPLO 1: UE POSITIVA -->
+      <article class="section-card" id="sec-4">
+        <div class="section-header">
+          <div class="section-num">04</div>
+          <div class="section-title">
+            <h2>Ejemplo Práctico 1: Crear una UE Positiva (Estrato de Tierra)</h2>
+            <div class="section-desc">Paso a paso para registrar un nivel de derrumbe o depósito con fotos, cotas, GPS y dictado por voz.</div>
+          </div>
+        </div>
+
+        <p>
+          <strong>Caso real a registrar:</strong> Hemos retirado el asfalto superficial y aparece una capa de tierra oscura con tejas rotas y cenizas correspondiente al derrumbe de una techumbre.
+        </p>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-badge">1</span> Pulsar en «Nueva Ficha»</div>
+          <p>
+            En la esquina superior izquierda pulsa <span class="ui-pill primary">+ Nueva ficha</span> y selecciona <span class="ui-pill estrato">Estrato</span>. Se creará automáticamente la siguiente ficha libre correlativa (e.g. <code>UE 002</code>).
+          </p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-badge">2</span> Comprobar la Clase de UE</div>
+          <p>
+            En la cabecera verás el desplegable <strong>Clase de UE</strong>. Asegúrate de que está marcado como <span class="ui-pill estrato">UE Positiva (Depósito / Estrato)</span> (viene seleccionado por defecto).
+          </p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-badge">3</span> Tomar Cotas y Capturar GPS con un Clic</div>
+          <p>
+            • En el bloque de <strong>Cotas</strong>, anota la cota superior leída en el nivel óptico: <code>452.18</code>. Cuando termines de excavar el estrato, anota la cota inferior: <code>451.85</code>. La app calculará automáticamente el espesor medio (<code>0.33 m</code>).
+            <br>• En la sección <strong>Georreferenciación</strong>, pulsa el botón <span class="ui-pill">📍 Capturar GPS</span>. La app activará el receptor GPS de tu tableta y convertirá matemáticamente las coordenadas al sistema oficial <strong>UTM ETRS89 Huso 30N</strong> con precisión en metros.
+          </p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-badge">4</span> Usar el Dictado por Voz Continuo</div>
+          <p>
+            Si tienes las manos manchadas de tierra y no quieres teclear, pulsa el botón con icono de micrófono <span class="ui-pill">🎤 Dictar</span> que hay junto al campo de <strong>Descripción</strong> o <strong>Interpretación</strong>:
+          </p>
+          <div class="callout tip">
+            <p>
+              <em>«Estrato de tierra oscura con abundante carbón vegetal, fragmentos de teja curva y presencia de fauna doméstica cocinada con huellas de fuego.»</em>
+            </p>
+          </div>
+          <p>La app transcribirá tu voz a texto en tiempo real. Vuelve a pulsar el botón para detener el micrófono.</p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-badge">5</span> Adjuntar Fotografías y Dibujar Croquis</div>
+          <p>
+            • Pulsa <span class="ui-pill">Añadir foto</span>. Puedes tomar una foto directamente con la cámara de tu tableta o elegirla de la galería. La app comprime la imagen automáticamente a WebP/JPEG optimizado para no saturar la memoria.
+            <br>• Pulsa <span class="ui-pill">Abrir croquis</span> si deseas hacer un dibujo rápido a mano alzada sobre la pantalla táctil con lápiz o con el dedo.
+          </p>
+        </div>
+      </article>
+
+      <!-- SECCIÓN 5: EJEMPLO 2: UE NEGATIVA -->
+      <article class="section-card" id="sec-5">
+        <div class="section-header">
+          <div class="section-num">05</div>
+          <div class="section-title">
+            <h2>Ejemplo Práctico 2: Crear una UE Negativa (Corte de Fosa o Zanja)</h2>
+            <div class="section-desc">Cómo activar la morfología de corte negativo, dimensions de boca y fondo, y vincular los rellenos.</div>
+          </div>
+        </div>
+
+        <p>
+          <strong>Caso real a registrar:</strong> Observamos una mancha circular en el suelo donde se ha excavado un agujero para arrojar basura o plantar un poste.
+        </p>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-badge">1</span> Crear la Ficha y Seleccionar «UE Negativa»</div>
+          <p>
+            Crea una nueva ficha de estrato (e.g. <code>UE 003</code>) y en el desplegable superior <strong>Clase de UE</strong> cambia de <em>Positiva</em> a:
+            <br><span class="ui-pill corte">− UE Negativa (Corte / Fosa / Interfase)</span>.
+          </p>
+          <p>
+            Observarás que la ficha cambia visualmente: la cabecera adquiere un tono azul pizarra, el distintivo marca <span class="ui-pill corte">− Corte</span> y se despliega el panel especializado de <strong>Morfología del Corte</strong>.
+          </p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-badge">2</span> Rellenar los Parámetros del Corte</div>
+          <div class="table-box">
+            <table class="guide-table">
+              <thead>
+                <tr>
+                  <th style="width:30%">Campo en la App</th>
+                  <th style="width:35%">Ejemplo de Selección / Entrada</th>
+                  <th style="width:35%">Efecto en el Registro</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Causa o Tipo</strong></td>
+                  <td>Desplegable: <code>Fosa simple</code>, <code>Zanja de cimentación</code>, <code>Hoyo de poste</code>, <code>Silo</code>, <code>Zanja de expolio</code>.</td>
+                  <td>Tipifica la función antrópica del corte.</td>
+                </tr>
+                <tr>
+                  <td><strong>Perfil de Paredes</strong></td>
+                  <td>Desplegable: <code>Vertical simétrico</code>, <code>Inclinado oblicuo</code>, <code>Cóncavo redondeado</code>, <code>Escalonado</code>.</td>
+                  <td>Describe la sección transversal de las paredes.</td>
+                </tr>
+                <tr>
+                  <td><strong>Forma del Fondo</strong></td>
+                  <td>Desplegable: <code>Plano horizontal</code>, <code>Cóncavo redondeado</code>, <code>En V apuntado</code>, <code>Irregular</code>.</td>
+                  <td>Clasifica la base donde se detuvo el corte.</td>
+                </tr>
+                <tr>
+                  <td><strong>Dimensiones de Boca y Fondo</strong></td>
+                  <td>Boca: <code>1.80 x 0.70 m</code> · Fondo: <code>1.65 x 0.60 m</code> · Profundidad: <code>0.85 m</code></td>
+                  <td>Registra las medidas métricas exactas.</td>
+                </tr>
+                <tr>
+                  <td><strong>Eje Longitudinal</strong></td>
+                  <td>Texto o sugerencia: <code>Este-Oeste (E-O)</code></td>
+                  <td>Orienta el corte en la planimetría.</td>
+                </tr>
+                <tr>
+                  <td><strong>UEs de Colmatación / Relleno</strong></td>
+                  <td>Anotar los números de relleno separados por comas: <code>4</code></td>
+                  <td>Vincula la fosa con la tierra que la llena (UE 004).</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="callout tip">
+          <div class="callout-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            Representación en la Matriz
+          </div>
+          <p>
+            Al declarar esta UE como corte negativo, cuando abras la <strong>Matriz de Harris</strong>, el nodo de la <code>UE 003</code> se dibujará automáticamente con <strong>borde discontinuo (dashed)</strong> y distintivo azul, identificándose al instante como una interfase sustractiva frente a los estratos de tierra.
+          </p>
+        </div>
+      </article>
+
+      <!-- SECCIÓN 6: EJEMPLO 3: ESTRUCTURAS -->
+      <article class="section-card" id="sec-6">
+        <div class="section-header">
+          <div class="section-num">06</div>
+          <div class="section-title">
+            <h2>Ejemplo Práctico 3: Estructuras, Muros y Pavimentos</h2>
+            <div class="section-desc">Fábricas de piedra, ladrillo, tapia y soleras con cálculo de dimensiones y aparejos.</div>
+          </div>
+        </div>
+
+        <p>
+          Al seleccionar <span class="ui-pill estructura">+ Nueva ficha &rarr; Estructura</span>, se genera una ficha de color terracota específica para elementos construidos (e.g. <code>UE 005</code>):
+        </p>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-badge">1</span> Tipo de Estructura y Dimensiones</div>
+          <p>
+            • Selecciona el tipo general: <em>Muro</em>, <em>Pavimento</em>, <em>Pilar</em>, <em>Cimiento</em>, <em>Horno</em>, <em>Canal / Alcantarilla</em>.
+            <br>• Dimensiones: Escribe la longitud visible, anchura o espesor del paramento y altura conservada (e.g. <code>Long: 4.20 m · Anch: 0.60 m · Alt: 1.45 m</code>).
+          </p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-badge">2</span> Seleccionar la Fábrica Constructiva</div>
+          <p>La app incluye subfichas especializadas según el material constructivo:</p>
+          <ul>
+            <li><strong>Fábrica de Piedra:</strong> Clase de roca (arenisca, caliza, granito), labra (sillería escuadrada, sillarejo, mampostería careada), tipo de traba o mortero (cal y arena, yeso, barro o en seco) y marcas de cantero.</li>
+            <li><strong>Fábrica de Ladrillo:</strong> Dimensiones individuales del ladrillo (longitud, anchura, grosor), aparejo (a soga, a tizón, inglés, flamenco) y grosor de las juntas de mortero.</li>
+            <li><strong>Fábrica de Tapia o Adobe:</strong> Altura de cajón de tapial, masa del barro, agujas de encofrado y revestimiento.</li>
+            <li><strong>Pavimento:</strong> Solera de mortero (*opus signinum*), enlosado de piedra, canto rodado o mosaico.</li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- SECCIÓN 7: EJEMPLO 4: ENTERRAMIENTOS -->
+      <article class="section-card" id="sec-7">
+        <div class="section-header">
+          <div class="section-num">07</div>
+          <div class="section-title">
+            <h2>Ejemplo Práctico 4: Enterramientos y Esqueletos</h2>
+            <div class="section-desc">Antropología de campo, orientación cadavérica, postura y odontograma interactivo.</div>
+          </div>
+        </div>
+
+        <p>
+          Al crear una ficha de <span class="ui-pill esqueleto">Esqueleto</span> (e.g. <code>UE 006</code>), la app despliega el modelo oficial para antropología física y bioarqueología:
+        </p>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-badge">1</span> Posición y Orientación Anatómica</div>
+          <ul>
+            <li><strong>Tipo de Sepultura:</strong> Fosa simple, cista de losas, sarcófago, nicho, fosa con cubierta de tejas (*tegulae*).</li>
+            <li><strong>Ritual y Depósito:</strong> Inhumación individual / doble / colectiva, depósito primario (en conexión anatómica) o secundario.</li>
+            <li><strong>Posición cadavérica:</strong> Decúbito supino (boca arriba), decúbito prono (boca abajo), decúbito lateral derecho/izquierdo flexionado.</li>
+            <li><strong>Orientación:</strong> Rumbo cardinal de la cabeza respecto a los pies (e.g. <code>Oeste-Este: cabeza al oeste mirando al este</code>).</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-badge">2</span> Odontograma Dental Interactivo</div>
+          <p>
+            La ficha incluye un <strong>odontograma interactivo</strong> con las piezas dentales superiores e inferiores. Puedes pulsar sobre cada diente para marcar si está presente, ausente *antemortem*, perdido *postmortem* o con caries macroscópica.
+          </p>
+        </div>
+      </article>
+
+      <!-- SECCIÓN 8: MATRIZ DE HARRIS -->
+      <article class="section-card" id="sec-8">
+        <div class="section-header">
+          <div class="section-num">08</div>
+          <div class="section-title">
+            <h2>La Matriz de Harris Interactiva</h2>
+            <div class="section-desc">Declaración de relaciones estratigráficas, reciprocidad automática y exportación a GraphML y DOT.</div>
+          </div>
+        </div>
+
+        <h3>Cómo Declarar Relaciones Estratigráficas</h3>
+        <p>
+          En cualquier ficha abierta (estrato, estructura o esqueleto), verás la sección <strong>Relaciones estratigráficas</strong>. Para relacionar la UE actual con otra:
+        </p>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-badge">1</span> Escribir el número de la UE vecina</div>
+          <p>
+            Por ejemplo, en la ficha de la <code>UE 002</code>, si sabemos que cubre a la <code>UE 003</code> y a la <code>UE 005</code>:
+            <br>• En la casilla <em>Cubre a</em> escribe <code>3</code> y pulsa Enter.
+            <br>• Vuelve a escribir <code>5</code> y pulsa Enter.
+          </p>
+        </div>
+
+        <div class="callout tip">
+          <div class="callout-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            Reciprocidad Automática Garantizada
+          </div>
+          <p>
+            No necesitas ir a la ficha de la UE 003 para escribir que es cubierta por la UE 002. <strong>La aplicación actualiza automáticamente la relación inversa en la otra ficha</strong>. La reciprocidad es siempre estricta y bidireccional.
+          </p>
+        </div>
+
+        <h3>Navegación en el Visor de la Matriz</h3>
+        <p>
+          Pulsa en <span class="ui-pill">Matriz de Harris</span> en la barra lateral para ver el grafo estratigráfico completo del yacimiento:
+        </p>
+        <ul>
+          <li><strong>Zoom y Desplazamiento:</strong> Usa la rueda del ratón o el pellizco táctil en tableta para hacer zoom in/out. Arrastra con el dedo para moverte por el grafo.</li>
+          <li><strong>Hacer clic en un nodo:</strong> Al pulsar sobre cualquier caja de UE, se abre de inmediato su ficha en el editor.</li>
+          <li><strong>Bandas de Fase Horizontales:</strong> Si configuraste fases en los ajustes del proyecto, la matriz mostrará bandas de color horizontales agrupando las UEs de cada época histórica.</li>
+          <li><strong>Exportar Grafo:</strong> En la barra de herramientas de la matriz tienes dos botones científicos:
+            <br>• <span class="ui-pill">GraphML (Gephi)</span>: Descarga el archivo de red para análisis de centralidad y maquetación en <strong>Gephi</strong> o <strong>Cytoscape</strong>.
+            <br>• <span class="ui-pill">DOT (Graphviz)</span>: Descarga el código estándar para compilar diagramas con <strong>Graphviz</strong>.
+          </li>
+        </ul>
+      </article>
+
+      <!-- SECCIÓN 9: MATERIALES Y QR -->
+      <article class="section-card" id="sec-9">
+        <div class="section-header">
+          <div class="section-num">09</div>
+          <div class="section-title">
+            <h2>Inventario de Materiales e Impresión de Etiquetas con QR</h2>
+            <div class="section-desc">Registro de piezas muebles, cálculo de peso/fragmentos y generación de etiquetas adhesivas A4.</div>
+          </div>
+        </div>
+
+        <p>
+          En la barra lateral izquierda, pulsa en la pestaña <span class="ui-pill">Materiales</span> (icono de paquete) para abrir el módulo de inventario de campo:
+        </p>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-badge">1</span> Dar de Alta una Pieza o Lote</div>
+          <p>
+            Pulsa el botón <span class="ui-pill primary">+ Nuevo material</span>. Se abrirá el modal de registro:
+          </p>
+          <ul>
+            <li><strong>UE:</strong> Indica la Unidad Estratigráfica de donde se extrajo (e.g. <code>2</code>).</li>
+            <li><strong>Categoría:</strong> Selecciona en el desplegable (Cerámica, Fauna, Metal, Vidrio, Industria lítica, Restos constructivos, Malacofauna, Monedas, etc.).</li>
+            <li><strong>Sigla / Código:</strong> La app propone automáticamente una sigla correlativa (e.g. <code>SCM26-001</code>).</li>
+            <li><strong>Descripción:</strong> Tipo de objeto (e.g. <em>«Borde de cazuela vidriada en verde melado con pasta oxidante»</em>).</li>
+            <li><strong>Fragmentos y Peso:</strong> Indica el número de fragmentos y el peso en gramos (para calcular estadísticas globales de peso por UE).</li>
+            <li><strong>Caja y Bolsa:</strong> Ubicación en el almacén de campo (e.g. <code>Caja 1 / Bolsa 04</code>).</li>
+            <li><strong>Estado:</strong> Marca la casilla <em>Siglado</em> cuando la pieza haya sido rotulada con Paraloid y tinta china.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-badge">2</span> Imprimir Pliegos de Etiquetas Adhesivas con Códigos QR</div>
+          <p>
+            Pulsa el botón <span class="ui-pill">🖨️ Imprimir etiquetas QR</span>. La aplicación generará en cliente una cuadrícula A4 lista para imprimir en papel adhesivo:
+          </p>
+          <ul>
+            <li>Cada etiqueta incluye el código QR vectorial de alta definición, la sigla de la pieza, la UE, la categoría, la fecha y la caja de destino.</li>
+            <li>Al escanear el código QR con cualquier móvil o tableta en el laboratorio, se abrirá al instante la información completa de la ficha de excavación.</li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- SECCIÓN 10: MUESTRAS CIENTÍFICAS -->
+      <article class="section-card" id="sec-10">
+        <div class="section-header">
+          <div class="section-num">10</div>
+          <div class="section-title">
+            <h2>Registro de Muestras Científicas (C14, OSL, Polen)</h2>
+            <div class="section-desc">Custodia de análisis arqueométricos, coordenadas 3D de toma y laboratorios de destino.</div>
+          </div>
+        </div>
+
+        <p>
+          En la barra lateral izquierda, pulsa en la pestaña <span class="ui-pill">Muestras</span> (icono de matraz de laboratorio) para gestionar la arqueometría de la excavación:
+        </p>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-badge">1</span> Dar de Alta una Muestra Analítica</div>
+          <p>
+            Pulsa <span class="ui-pill primary">+ Nueva muestra</span> y cumplimenta:
+          </p>
+          <ul>
+            <li><strong>Tipo de análisis:</strong> C14 (Radiocarbono), OSL (Luminiscencia), Palinología (polen), Antracología (carbón), ADN antiguo, Sedimentología o Isótopos estables.</li>
+            <li><strong>UE y Cota XYZ:</strong> Asocia la muestra a su estrato y anota la altitud exacta de toma (e.g. <code>Z: 451.90 m</code>).</li>
+            <li><strong>Laboratorio de destino:</strong> Centro de investigación previsto (e.g. <em>Centro Nacional de Aceleradores - CNA Sevilla</em>).</li>
+            <li><strong>Estado de custodia:</strong> Cambia el selector según avance el proceso: <em>En campo</em> &rarr; <em>Preparada</em> &rarr; <em>Enviada al lab</em> &rarr; <em>Completada con resultado</em>.</li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- SECCIÓN 11: HERRAMIENTAS DE CAMPO MÓVILES -->
+      <article class="section-card" id="sec-11">
+        <div class="section-header">
+          <div class="section-num">11</div>
+          <div class="section-title">
+            <h2>Herramientas de Campo Móviles (GPS, Voz y Modo Solar)</h2>
+            <div class="section-desc">Optimización ergonómica para trabajar en la zanja bajo luz solar directa y con guantes de tierra.</div>
+          </div>
+        </div>
+
+        <h3>1. Modo Contraste Solar de Alto Rendimiento</h3>
+        <p>
+          Bajo la luz directa del sol de verano en el yacimiento, las pantallas de las tabletas y móviles sufren reflejos y los colores oscuros se vuelven ilegibles.
+        </p>
+        <p>
+          En la barra superior o en el selector de tema de la barra lateral, selecciona el <strong>Tema Solar</strong> (<span class="ui-pill">☀️ Solar</span>). La interfaz cambiará instantáneamente a:
+        </p>
+        <ul>
+          <li>Fondo blanco puro al 100% (máxima luminancia en pantalla OLED/LCD).</li>
+          <li>Tipografía en negro puro con contornos reforzados y líneas de alto contraste.</li>
+          <li>Eliminación de degradados suaves para que cada botón y texto sea nítido a pleno sol.</li>
+        </ul>
+
+        <h3>2. Georreferenciación Automática a UTM ETRS89</h3>
+        <p>
+          Cada ficha dispone de un botón <span class="ui-pill">📍 GPS</span>. Al pulsarlo:
+        </p>
+        <ul>
+          <li>La app solicita permiso de geolocalización de alta precisión al navegador.</li>
+          <li>Aplica fórmulas geodésicas de Proyección Transversal de Mercator en cliente.</li>
+          <li>Convierte instantáneamente los grados decimales WGS84 al sistema oficial <strong>UTM ETRS89 (Husos 28, 29, 30 o 31)</strong> con coordenadas métricas $X$, $Y$, altitud $Z$ y radio de precisión en metros.</li>
+        </ul>
+      </article>
+
+      <!-- SECCIÓN 12: TRABAJO EN EQUIPO Y SMART MERGE -->
+      <article class="section-card" id="sec-12">
+        <div class="section-header">
+          <div class="section-num">12</div>
+          <div class="section-title">
+            <h2>Trabajo en Equipo y Sincronización (Smart Merge)</h2>
+            <div class="section-desc">Cómo sincronizar los datos de varios arqueólogos excavando simultáneamente en diferentes tabletas sin internet.</div>
+          </div>
+        </div>
+
+        <p>
+          En una excavación real es habitual que 2 o 3 técnicos estén rellenando fichas a la vez en distintos sectores con sus propias tabletas o teléfonos móviles sin conexión entre sí. Al terminar la jornada:
+        </p>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-badge">1</span> En cada tableta de campo: Exportar JSON</div>
+          <p>
+            Cada arqueólogo entra en <span class="ui-pill">Proyecto y datos</span> y pulsa <span class="ui-pill primary">Exportar JSON completo</span>. Se descargará un archivo (e.g. <code>registro-solar-mayor-2026-10-26.json</code>) que contiene todas las fichas, fotos y materiales creados en su dispositivo. Se envían los archivos por Bluetooth, cable USB o pendrive al ordenador del director.
+          </p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-badge">2</span> En el equipo principal: Importar y Fusión Inteligente</div>
+          <p>
+            El director entra en su equipo y pulsa <span class="ui-pill">Importar JSON</span> seleccionando el archivo recibido. Al detectar que el proyecto ya existe, la aplicación desplegará el <strong>Modal de Sincronización Multi-Dispositivo</strong>:
+          </p>
+          <div class="callout tip">
+            <div class="callout-title">Modal de Fusión Inteligente (Smart Merge)</div>
+            <p>
+              La app analiza automáticamente las diferencias y te informa:
+              <br>• <em>«Se han encontrado 4 fichas nuevas, 2 fichas modificadas y 1 conflicto de número de UE»</em>.
+              <br>• Si dos técnicos crearon por error una «UE 005» en sectores distintos, la casilla <strong>«Renumerar automáticamente UEs en conflicto»</strong> reasigna a la segunda el siguiente número libre disponible sin perder relaciones.
+            </p>
+          </div>
+          <p>
+            Pulsa el botón <span class="ui-pill primary">Fusión Inteligente (Recomendado)</span>. Todas las fichas, fotografías, materiales y muestras se fusionarán en la base de datos maestra con trazabilidad de autor (<code>createdBy</code>, <code>updatedBy</code>).
+          </p>
+        </div>
+      </article>
+
+      <!-- SECCIÓN 13: EXPORTACIÓN A WORD, PDF Y QGIS -->
+      <article class="section-card" id="sec-13">
+        <div class="section-header">
+          <div class="section-num">13</div>
+          <div class="section-title">
+            <h2>Generación Documental: Memoria Word (.docx), PDF y QGIS</h2>
+            <div class="section-desc">Entrega administrativa ante Patrimonio, Libro de Registro oficial y capas espaciales para SIG.</div>
+          </div>
+        </div>
+
+        <p>
+          En la vista <span class="ui-pill">Proyecto y datos</span> dispones de la suite de exportaciones científicas más completa:
+        </p>
+
+        <div class="table-box">
+          <table class="guide-table">
+            <thead>
+              <tr>
+                <th style="width:25%">Botón en la App</th>
+                <th style="width:25%">Formato de Archivo</th>
+                <th style="width:50%">Contenido y Finalidad</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="ui-pill primary">Descargar Memoria (.docx)</span></td>
+                <td><strong>Microsoft Word (.docx)</strong></td>
+                <td>Construye en cliente un documento Word formal de entre 20 y 80 páginas con portada institucional, ficha resumen, periodización por fases, <strong>catálogo descriptivo correlativo de todas las UEs</strong> (con sus cotas, descripción, morfología, interpretación y relaciones), inventario de materiales muebles y registro de muestras analíticas listo para entregar a Patrimonio.</td>
+              </tr>
+              <tr>
+                <td><span class="ui-pill">Libro de Registro (PDF)</span></td>
+                <td><strong>Impresión / PDF A4 Horizontal</strong></td>
+                <td>Genera el libro oficial apaisado de concordancias y relaciones de todas las UEs para su encuadernación y depósito administrativo.</td>
+              </tr>
+              <tr>
+                <td><span class="ui-pill">Exportar capa GeoJSON</span></td>
+                <td><strong>GeoJSON (.geojson)</strong></td>
+                <td>Descarga una capa vectorial espacial con todas las UEs georreferenciadas. Solo tienes que arrastrar el archivo dentro de <strong>QGIS</strong> o <strong>ArcGIS</strong> para ver los puntos en el mapa con todos sus atributos asociados.</td>
+              </tr>
+              <tr>
+                <td><span class="ui-pill">Exportar CSV</span></td>
+                <td><strong>Hoja de cálculo (.csv)</strong></td>
+                <td>Tablas de datos tabulares para abrir en Excel, LibreOffice Calc o bases de datos de museos.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <!-- SECCIÓN 14: PREGUNTAS FRECUENTES -->
+      <article class="section-card" id="sec-14">
+        <div class="section-header">
+          <div class="section-num">14</div>
+          <div class="section-title">
+            <h2>Preguntas Frecuentes y Consejos de Seguridad</h2>
+            <div class="section-desc">Todo lo que necesitas saber sobre copias de seguridad, almacenamiento y resolución de dudas.</div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title">¿Qué ocurre si la tableta se queda sin batería o se cierra el navegador?</div>
+          <p>
+            <strong>No se pierde nada</strong>. La aplicación guarda automáticamente cada letra que escribes y cada fotografía que adjuntas en la base de datos IndexedDB interna del navegador en cuestión de milisegundos. Al encender la tableta y volver a abrir la app, estarás exactamente en la misma ficha donde lo dejaste.
+          </p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title">¿Cómo evito que el navegador limpie la memoria si queda poco espacio?</div>
+          <p>
+            La aplicación solicita automáticamente al sistema el permiso de almacenamiento persistente (<code>navigator.storage.persist()</code>). Esto le indica al sistema operativo Android, iOS o Windows que los datos de la excavación son <em>protegidos</em> y no deben borrarse nunca en limpiezas automáticas de caché.
+          </p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title">¿Cuál es la rutina recomendada para cada jornada de excavación?</div>
+          <ol>
+            <li><strong>Por la mañana:</strong> Abrir la app en la tableta. Comprobar que el indicador de almacenamiento marca <em>Guardado en memoria local</em>.</li>
+            <li><strong>Durante la jornada:</strong> Crear fichas en corte, capturar GPS, tomar cotas Z1/Z2 y adjuntar fotos y croquis.</li>
+            <li><strong>Al terminar la jornada:</strong> Ir a <span class="ui-pill">Proyecto y datos</span> y pulsar <span class="ui-pill primary">Exportar JSON completo</span>. Guardar una copia en el pendrive de la caseta de campo o enviarla a la nube. ¡Esa es tu póliza de seguro ante cualquier caída o pérdida física de la tableta!</li>
+          </ol>
+        </div>
+      </article>
+
+    </main>
+  </div>
+
+  <script>
+    // Control de temas
+    const THEMES = ['auto', 'light', 'dark', 'solar'];
+    let curTheme = 0;
+    function cycleTheme() {
+      curTheme = (curTheme + 1) % THEMES.length;
+      const t = THEMES[curTheme];
+      const r = document.documentElement;
+      if (t === 'auto') {
+        r.removeAttribute('data-theme');
+        document.getElementById('theme-btn-label').innerText = '🌓 Tema: Auto';
+      } else {
+        r.setAttribute('data-theme', t);
+        document.getElementById('theme-btn-label').innerText = '🌓 Tema: ' + t.charAt(0).toUpperCase() + t.slice(1);
+      }
+    }
+
+    // Filtro del sidebar
+    function filterNav() {
+      const q = document.getElementById('guideSearch').value.toLowerCase().trim();
+      const items = document.querySelectorAll('#navList li');
+      items.forEach(it => {
+        const txt = it.innerText.toLowerCase();
+        it.style.display = (!q || txt.includes(q)) ? 'block' : 'none';
+      });
+    }
+
+    // Resaltado de navegación activa
+    window.addEventListener('scroll', () => {
+      const sections = document.querySelectorAll('.section-card');
+      const links = document.querySelectorAll('.nav-item a');
+      let cur = '';
+      sections.forEach(s => {
+        const top = s.getBoundingClientRect().top;
+        if (top <= 140) cur = s.id;
+      });
+      links.forEach(l => {
+        if (l.getAttribute('href') === '#' + cur) l.classList.add('active');
+        else l.classList.remove('active');
+      });
+    });
+  </script>
+</body>
+</html>

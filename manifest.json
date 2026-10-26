@@ -1,0 +1,33 @@
+{
+  "name": "Registro de Excavación Arqueológica V2",
+  "short_name": "Registro Arq V2",
+  "description": "Aplicación profesional para registro de campo, matriz de Harris y fichas estratigráficas de excavación.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F4F6F5",
+  "theme_color": "#16625E",
+  "lang": "es",
+  "categories": ["productivity", "utilities", "education"],
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
