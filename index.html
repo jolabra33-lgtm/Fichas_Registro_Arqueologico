@@ -615,7 +615,7 @@ const idbDel = (st, k) => IDB.ok ? rq2p(tx(st, 'readwrite').delete(k)) : Promise
 const idbImgs = pid => IDB.ok ? rq2p(tx('images').index('p').getAll(pid)) : Promise.resolve([]);
 
 /* =====================  ESTADO  ===================== */
-const S = { projects: [], pid: null, view: 'panel', rid: null, q: '', f: { tipo: '', estado: '', hecho: '', sort: 'ue', dir: 1 }, findsF: { tipo: '', estado: '', ue: '', q: '' }, samplesF: { tipo: '', estado: '', ue: '', q: '' }, sel: new Set(), saveState: 'saved', savedAt: 0, hv: { hecho: '', fase: '', color: 'tipo', reduce: true, missing: true, labels: true, bands: false, sel: null } };
+const S = { projects: [], pid: null, view: 'panel', rid: null, q: '', f: { tipo: '', estado: '', hecho: '', fase: '', dat: '', sort: 'ue', dir: 1 }, findsF: { tipo: '', estado: '', ue: '', q: '' }, samplesF: { tipo: '', estado: '', ue: '', q: '' }, sel: new Set(), saveState: 'saved', savedAt: 0, hv: { hecho: '', fase: '', color: 'tipo', reduce: true, missing: true, labels: true, bands: false, sel: null } };
 const IMG = new Map();
 const P = () => S.projects.find(p => p.id === S.pid);
 const CUR = () => { const p = P(); return p && p.records.find(r => r.id === S.rid); };
@@ -650,11 +650,20 @@ async function flush() {
   clearTimeout(saveT); saveT = null;
   const p = P(); if (!p) return;
   if (!IDB.ok) { setSaveState('memory'); return; }
-  try { await idbPut('projects', JSON.parse(JSON.stringify(p, stripPriv))); setSaveState('saved'); }
+  try { await idbPut('projects', projectRow(p)); setSaveState('saved'); }
   catch (e) { setSaveState('error'); toast('No se pudo guardar en el navegador. Exporte una copia JSON.', 'err'); }
 }
-async function saveProjectNow(p) { if (!IDB.ok) return; try { await idbPut('projects', JSON.parse(JSON.stringify(p, stripPriv))); } catch (e) { } }
+async function saveProjectNow(p) { if (!IDB.ok) return; try { await idbPut('projects', projectRow(p)); } catch (e) { } }
+// El proyecto se guarda como texto JSON: IndexedDB copia un único texto casi sin coste, mientras
+// que copiar el objeto (miles de fichas y trazos) bloqueaba la pantalla en cada guardado.
+// Se siguen leyendo los proyectos guardados como objeto por versiones anteriores.
+function projectRow(p) { return { id: p.id, fmt: 2, json: JSON.stringify(p, stripPriv) }; }
+function projectFromRow(row) { return row && typeof row.json === 'string' ? JSON.parse(row.json) : row; }
 const RAW_BLOBS = new Map();
+// Marcas de cada foto guardadas junto a ella en IndexedDB (no en el proyecto, para no hacer más
+// pesado el guardado): bk = fecha de la última copia que la incluyó; arch = solo queda una miniatura.
+const IMG_META = new Map();
+const imgRow = (id, projectId, data) => { const m = IMG_META.get(id) || {}; const o = { id, projectId, data }; if (m.bk) o.bk = m.bk; if (m.arch) o.arch = true; return o; };
 
 function b64ToBlob(b64, mime) {
   const bstr = atob(b64);
@@ -760,9 +769,11 @@ async function loadImages(pid) {
   }
   IMG.clear();
   RAW_BLOBS.clear();
+  IMG_META.clear();
 
   const rows = await idbImgs(pid).catch(() => []);
   for (const r of rows) {
+    if (r.bk || r.arch) IMG_META.set(r.id, { bk: r.bk || 0, arch: !!r.arch });
     if (r.data instanceof Blob) {
       const url = URL.createObjectURL(r.data);
       IMG.set(r.id, url);
@@ -773,11 +784,23 @@ async function loadImages(pid) {
       try {
         const blob = dataUrlToBlob(r.data);
         RAW_BLOBS.set(r.id, blob);
-        idbPut('images', { id: r.id, projectId: r.projectId || pid, data: blob }).catch(() => {});
+        idbPut('images', imgRow(r.id, r.projectId || pid, blob)).catch(() => {});
       } catch (err) {}
     }
   }
   setTimeout(() => optimizeStoredImages(pid), 2000);
+}
+
+// Miniatura JPEG/WebP de una foto (para archivar fotos ya respaldadas).
+async function makeThumb(blob, maxDim = 480, q = 0.7) {
+  const url = URL.createObjectURL(blob);
+  try {
+    const im = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    const k = Math.min(1, maxDim / Math.max(im.naturalWidth, im.naturalHeight));
+    const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(im.naturalWidth * k)); c.height = Math.max(1, Math.round(im.naturalHeight * k));
+    const g = c.getContext('2d'); g.fillStyle = '#ffffff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(im, 0, 0, c.width, c.height);
+    return await encodeCanvas(c, q);
+  } finally { URL.revokeObjectURL(url); }
 }
 
 // Las versiones anteriores guardaban las fotos en PNG en Safari/iPad (6–8 MB cada una).
@@ -802,7 +825,7 @@ async function optimizeStoredImages(pid) {
         URL.revokeObjectURL(url);
         const nb = await encodeCanvas(c, 0.85);
         if (!nb || !nb.size || nb.size >= blob.size) continue;
-        await idbPut('images', { id, projectId: pid, data: nb });
+        await idbPut('images', imgRow(id, pid, nb));
         if (S.pid === pid) {
           const old = IMG.get(id); RAW_BLOBS.set(id, nb); IMG.set(id, URL.createObjectURL(nb));
           if (old && old.startsWith('blob:')) setTimeout(() => URL.revokeObjectURL(old), 60000);
@@ -1033,7 +1056,7 @@ const slug = s => norm(s).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || '
 /* =====================  AVISOS Y DIÁLOGOS  ===================== */
 function toast(msg, kind) {
   const el = document.createElement('div'); el.className = 'toast' + (kind === 'err' ? ' err' : ''); el.textContent = msg;
-  $('#toasts').appendChild(el); setTimeout(() => el.remove(), kind === 'err' ? 6000 : 2800);
+  $('#toasts').appendChild(el); setTimeout(() => el.remove(), kind === 'err' || kind === 'warn' ? 6000 : 2800);
 }
 let modalClose = null;
 let MODAL_SEQ = 0;
@@ -1101,7 +1124,8 @@ function pickFiles(accept, multiple) {
   });
 }
 function lightbox(id, cap) {
-  openModal({ title: cap || 'Imagen', cls: 'wide', body: `<div class="lightbox"><img src="${imgSrc(id)}" alt="${esc(cap || '')}"></div>` });
+  const arch = (IMG_META.get(id) || {}).arch;
+  openModal({ title: cap || 'Imagen', cls: 'wide', body: `<div class="lightbox"><img src="${imgSrc(id)}" alt="${esc(cap || '')}"></div>${arch ? '<p class="faint" style="font-size:12.5px;margin:8px 0 0">Foto archivada: en este dispositivo solo queda una miniatura. El original está en las copias de seguridad.</p>' : ''}` });
 }
 
 /* =====================  CONSTRUCTORES DE FORMULARIO  ===================== */
@@ -1563,18 +1587,39 @@ async function imageBlob(id) {
   }
   return b && b.size ? b : null;
 }
-async function planZipBackup(p) {
+// Fotos del proyecto (las que citan sus fichas), con sus marcas de copia y archivo.
+function projectImageIds(p) { return [...new Set(JSON.stringify(p, stripPriv).match(/im_[a-z0-9]+/g) || [])]; }
+function backupStats(p) {
+  const st = { total: 0, sinCopia: 0, sinCopiaBytes: 0, archivadas: 0, respaldadas: 0, respaldadasBytes: 0 };
+  for (const id of projectImageIds(p)) {
+    const b = RAW_BLOBS.get(id); if (!b) continue; const m = IMG_META.get(id) || {};
+    st.total++;
+    if (m.arch) st.archivadas++;
+    else if (m.bk) { st.respaldadas++; st.respaldadasBytes += b.size; }
+    else { st.sinCopia++; st.sinCopiaBytes += b.size; }
+  }
+  return st;
+}
+// mode: 'completa' (todas las fotos) o 'incremental' (solo las que no han salido en ninguna copia).
+// Las fotos archivadas (solo queda su miniatura en el dispositivo) no se exportan nunca: su
+// original ya está en una copia y la miniatura no debe sustituirlo al importarla en otro equipo.
+async function planZipBackup(p, mode = 'completa') {
   const raw = JSON.stringify(p, stripPriv);
   const ids = [...new Set(raw.match(/im_[a-z0-9]+/g) || [])];
-  const items = [];
-  for (const id of ids) { const blob = await imageBlob(id); if (blob) items.push({ id, blob }); }
+  const items = []; let omitidas = 0, archivadas = 0;
+  for (const id of ids) {
+    const m = IMG_META.get(id) || {};
+    if (m.arch) { archivadas++; continue; }
+    if (mode === 'incremental' && m.bk) { omitidas++; continue; }
+    const blob = await imageBlob(id); if (blob) items.push({ id, blob });
+  }
   const parts = [{ items: [], size: 0 }];
   for (const it of items) {
     let cur = parts[parts.length - 1];
     if (cur.items.length && cur.size + it.blob.size > ZIP_PART_MAX) { cur = { items: [], size: 0 }; parts.push(cur); }
     cur.items.push(it); cur.size += it.blob.size;
   }
-  return { project: JSON.parse(raw), items, parts, setId: uid('bk'), exportedAt: new Date().toISOString() };
+  return { mode, omitidas, archivadas, desde: p.lastBackup || 0, project: JSON.parse(raw), items, parts, setId: uid('bk'), exportedAt: new Date().toISOString() };
 }
 function buildZipPart(plan, i) {
   if (typeof JSZip === 'undefined') throw new Error('Falta la librería jszip.min.js.');
@@ -1584,32 +1629,46 @@ function buildZipPart(plan, i) {
     fotos[it.id] = path; zip.file(path, it.blob, { binary: true });
   }
   zip.file('registro.json', JSON.stringify({
-    app: 'registro-excavacion', version: 3, formato: 'zip', exportedAt: plan.exportedAt, setId: plan.setId,
+    app: 'registro-excavacion', version: 3, formato: 'zip', tipo: plan.mode, desde: plan.desde, exportedAt: plan.exportedAt, setId: plan.setId,
     parte: i + 1, partes: plan.parts.length, totalImagenes: plan.items.length, project: plan.project, imagenes: fotos
   }));
   // Las fotos ya están comprimidas: STORE evita gastar CPU y batería del iPad.
   return zip.generateAsync({ type: 'blob', compression: 'STORE', mimeType: 'application/zip' });
 }
-async function exportZipBackup(p) {
-  const prog = progressToast('Preparando copia de seguridad…');
+// Marca como respaldadas las fotos que han salido en una copia descargada.
+async function markImagesBackedUp(p, items) {
+  const now = Date.now();
+  for (const it of items) {
+    const m = IMG_META.get(it.id) || {}; m.bk = now; IMG_META.set(it.id, m);
+    try { await idbPut('images', imgRow(it.id, p.id, it.blob)); } catch (e) { }
+  }
+}
+async function exportZipBackup(p, mode = 'completa') {
+  const inc = mode === 'incremental';
+  const prog = progressToast(inc ? 'Preparando copia de lo nuevo…' : 'Preparando copia de seguridad…');
   let plan;
-  try { plan = await planZipBackup(p); } finally { prog.done(); }
-  const n = plan.parts.length, base = `${slug(p.name)}-${today()}`;
+  try { plan = await planZipBackup(p, mode); } finally { prog.done(); }
+  const n = plan.parts.length, base = `${slug(p.name)}-${today()}${inc ? '-incremental' : ''}`;
   const fname = i => n === 1 ? `${base}.zip` : `${base}-parte${i + 1}de${n}.zip`;
-  const markDone = async () => { p.lastBackup = Date.now(); await saveProjectNow(p); if (S.view === 'panel' || S.view === 'settings') renderView(); };
+  const markDone = async () => {
+    await markImagesBackedUp(p, plan.items);
+    p.lastBackup = Date.now(); if (!inc) p.lastFullBackup = p.lastBackup; await saveProjectNow(p);
+    if (S.view === 'panel' || S.view === 'settings') renderView();
+  };
+  const what = (inc ? `${plan.items.length} fotos nuevas` : `${plan.items.length} fotos`) + (plan.archivadas ? ` (${plan.archivadas} fotos archivadas no se incluyen: sus originales están en copias anteriores)` : '');
   if (n === 1) {
     const prog1 = progressToast('Generando copia…');
     let blob; try { blob = await buildZipPart(plan, 0); } finally { prog1.done(); }
-    if (await saveFile(fname(0), blob, 'application/zip')) await markDone();
+    if (await saveFile(fname(0), blob, 'application/zip')) { await markDone(); toast(`Copia ${inc ? 'incremental' : 'completa'} descargada: todas las fichas y ${what}.`, plan.archivadas ? 'warn' : undefined); }
     return;
   }
   // Varias partes: un botón por parte (cada descarga la pide el usuario, como exige Safari/iPad)
   // y solo se genera en memoria la parte que se está descargando.
   const saved = new Set();
   openModal({
-    title: 'Copia de seguridad en ' + n + ' partes', cls: 'wide',
+    title: (inc ? 'Copia incremental en ' : 'Copia de seguridad en ') + n + ' partes', cls: 'wide',
     body: `<div class="g" style="gap:10px">
-      <p style="margin:0">El proyecto tiene <b>${plan.items.length} imágenes</b>. Para que la copia se pueda importar en cualquier dispositivo se divide en <b>${n} archivos ZIP</b>. Descargue todos y guárdelos juntos; para restaurar, seleccione todas las partes a la vez en «Importar copia».</p>
+      <p style="margin:0">${inc ? `Hay <b>${plan.items.length} fotos nuevas</b> desde la última copia.` : `El proyecto tiene <b>${plan.items.length} imágenes</b>.`} ${plan.archivadas ? ` Las <b>${plan.archivadas} fotos archivadas</b> no se incluyen: sus originales están en copias anteriores.` : ''} Para que la copia se pueda importar en cualquier dispositivo se divide en <b>${n} archivos ZIP</b>. Descargue todos y guárdelos juntos; para restaurar, seleccione todas las partes a la vez en «Importar copia».</p>
       <div class="list">${plan.parts.map((pt, i) => `<div class="it" style="cursor:default"><span style="flex:1;min-width:0"><b>Parte ${i + 1} de ${n}</b><br><span class="faint" style="font-size:12.5px">${pt.items.length} imágenes · ${fmtMB(pt.size)} · ${esc(fname(i))}</span></span><button class="btn s p" data-zpart="${i}">${ic('download', 15)}Descargar</button></div>`).join('')}</div>
     </div>`,
     actions: [{ label: 'Cerrar', fn: () => { } }],
@@ -1621,7 +1680,7 @@ async function exportZipBackup(p) {
             const blob = await buildZipPart(plan, i);
             if (await saveFile(fname(i), blob, 'application/zip')) {
               saved.add(i); btn.textContent = '✓ Descargada'; btn.classList.remove('p');
-              if (saved.size === n) { await markDone(); toast('Copia completa: ' + n + ' partes descargadas.'); }
+              if (saved.size === n) { await markDone(); toast(`Copia ${inc ? 'incremental' : 'completa'}: ${n} partes descargadas.`); }
             } else { btn.disabled = false; btn.textContent = 'Reintentar'; }
           } catch (e) { console.error(e); btn.disabled = false; btn.textContent = 'Reintentar'; toast('No se pudo generar la parte ' + (i + 1) + ': ' + (e.message || e), 'err'); }
         };
@@ -1732,6 +1791,11 @@ async function importZipSet(files) {
   const total = parts[0].man.partes || 1, have = new Set(parts.map(x => x.man.parte));
   const missing = []; for (let i = 1; i <= total; i++) if (!have.has(i)) missing.push(i);
   if (missing.length && !(await ask({ title: 'Faltan partes de la copia', ok: 'Importar igualmente', msg: `Esta copia tiene ${total} partes y faltan: ${missing.join(', ')}. Se importarán todas las fichas, pero no las fotos de esas partes (puede importarlas después y se fusionarán).` }))) return;
+  const m0 = parts[0].man;
+  if (m0.tipo === 'incremental' && !S.projects.some(x => x.id === m0.project.id) && !(await ask({
+    title: 'Copia incremental', ok: 'Importar igualmente',
+    msg: `Esta copia es <b>incremental</b>: contiene todas las fichas, pero solo las fotos nuevas${m0.desde ? ' desde el ' + esc(fmtDT(m0.desde)) : ''}. Para recuperar el proyecto completo, importe primero la última <b>copia completa</b> y después las incrementales, de la más antigua a la más reciente (cada una se fusiona con la anterior).`
+  }))) return;
   // Una sola parte abierta en memoria cada vez.
   let cur = { i: -1, zip: null };
   const zipOf = async i => { if (cur.i !== i) { cur = { i, zip: null }; cur.zip = await JSZip.loadAsync(parts[i].file); } return cur.zip; };
@@ -1775,6 +1839,7 @@ async function importProject(incoming, images) {
   if (!incoming || !Array.isArray(incoming.records)) { toast('Este archivo no es una copia de «Registro de excavación».', 'err'); return; }
   images = images || [];
   if (!incoming.finds) incoming.finds = []; if (!incoming.samples) incoming.samples = [];
+  compactStrokesIn(incoming.records);
   const exists = S.projects.find(p => p.id === incoming.id);
   let mode = 'new';
   let renumberConflicts = true;
@@ -3051,7 +3116,7 @@ function viewPanel() {
   <div class="stats">${stat('Unidades', recs.filter(r => r.type !== 'muraria').length, 'estratigráficas (UE)')}${stat('Estratos', by('estrato').length, 'fichas de estrato')}${stat('Estructuras', by('estructura').length, 'fichas de estructura')}${stat('Esqueletos', by('esqueleto').length, 'enterramientos')}${stat('Catas', by('muraria').length, 'catas murarias')}${stat('Completitud', avg + '%', 'media de campos clave')}${stat('Incidencias', an.err + an.warn, an.err ? `${an.err} errores` : 'sin errores')}</div>
   <div class="split">
     <section class="panel"><header><h2>Avance del registro</h2><div class="sp legend"><span><i style="background:var(--ok)"></i>Revisada</span><span><i style="background:var(--accent)"></i>Completa</span><span><i style="background:var(--line-2)"></i>Borrador</span></div></header><div class="bd bars">${stBar('estrato')}${stBar('estructura')}${stBar('esqueleto')}${stBar('muraria')}</div></section>
-    <section class="panel"><header><h2>Copia de seguridad</h2></header><div class="bd g" style="gap:10px"><div>${p.lastBackup ? `Última copia ${ago(p.lastBackup)}.` : '<b>Todavía no hay ninguna copia.</b>'} <span class="muted">${changed} ${changed === 1 ? 'ficha modificada' : 'fichas modificadas'} desde entonces.</span></div><div class="faint" style="font-size:13px">Los datos viven en este navegador. Descargue una copia al terminar cada jornada.</div><div class="row"><button class="btn ${oldBk && recs.length ? 'p' : ''}" data-act="exportjson">${ic('download')}Copia de seguridad</button><button class="btn" data-act="exportmemoriadocx">${ic('file')}Memoria .docx</button><button class="btn" data-act="importjson">${ic('upload')}Importar</button></div></div></section>
+    <section class="panel"><header><h2>Copia de seguridad</h2></header><div class="bd g" style="gap:10px"><div>${p.lastBackup ? `Última copia ${ago(p.lastBackup)}.` : '<b>Todavía no hay ninguna copia.</b>'} <span class="muted">${changed} ${changed === 1 ? 'ficha modificada' : 'fichas modificadas'} desde entonces.</span></div><div class="faint" style="font-size:13px">Los datos viven en este navegador. Descargue una copia al terminar cada jornada.</div><div class="row"><button class="btn ${oldBk && recs.length ? 'p' : ''}" data-act="quickbackup">${ic('download')}Copia de seguridad</button><button class="btn" data-act="exportmemoriadocx">${ic('file')}Memoria .docx</button><button class="btn" data-act="importjson">${ic('upload')}Importar</button></div></div></section>
   </div>
   <div class="split">
     <section class="panel"><header><h2>Últimas fichas editadas</h2><div class="sp"><button class="btn s g" data-act="nav" data-view="list">Ver todas</button></div></header>${recent.length ? `<div class="list">${recent.map(r => `<button class="it" data-act="open" data-id="${r.id}"><span class="ue t-${r.type}">${esc(recKey(r))}</span><span class="tag t-${r.type}">${TIPOS[r.type].label}</span><span class="cut" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc((r.descripcion || r.interpretacion || r.ubicacion || 'Sin descripción').slice(0, 90))}</span><span class="faint" style="font-size:12.5px">${ago(r.updatedAt)}</span></button>`).join('')}</div>` : `<div class="empty"><b>Aún no hay fichas</b>Cree la primera con «Nueva ficha».</div>`}</section>
@@ -3060,7 +3125,20 @@ function viewPanel() {
 }
 
 /* =====================  LISTADO  ===================== */
-function searchText(r) { return norm([recKey(r), 'ue' + r.ue, 'ue' + fu(r.ue), r.hecho, r.descripcion, r.interpretacion, r.datacion, r.autor, r.localizacion, r.ubicacion, r.cronPrincipal, r.tipoEstr, r.aparejo, r.acronimo, r.esq && r.esq.indiv, r.esq && esqSearch(r)].join(' ')); }
+function searchText(r) { return norm([recKey(r), 'ue' + r.ue, 'ue' + fu(r.ue), r.hecho, r.fase, r.descripcion, r.interpretacion, r.datacion, r.autor, r.localizacion, r.ubicacion, r.cronPrincipal, r.tipoEstr, r.aparejo, r.acronimo, r.esq && r.esq.indiv, r.esq && esqSearch(r)].join(' ')); }
+// Filtros de Fase y Datación: SIN_VALOR = fichas con el campo vacío.
+const SIN_VALOR = '__sin__';
+const datOf = r => r.datacion || r.cronPrincipal || '';
+const matchOpt = (want, v) => !want || (want === SIN_VALOR ? !String(v || '').trim() : String(v || '').trim() === want);
+// Opciones del filtro: primero las de la lista del proyecto (en su orden) y después cualquier otro
+// valor escrito a mano en alguna ficha, para que no quede ninguna ficha fuera.
+function filterOpts(list, used) {
+  const seen = new Set(list); const extra = [...new Set(used.map(v => String(v || '').trim()).filter(v => v && !seen.has(v)))].sort((x, y) => x.localeCompare(y, 'es', { numeric: true }));
+  return [...list, ...extra];
+}
+function filterSelect(id, label, all, cur, opts, sinLabel) {
+  return `<select id="${id}" aria-label="${label}" style="width:auto;max-width:240px"><option value="">${all}</option><option value="${SIN_VALOR}" ${cur === SIN_VALOR ? 'selected' : ''}>${sinLabel}</option>${opts.map(v => `<option value="${esc(v)}" ${cur === v ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select>`;
+}
 function filteredRecs() {
   const p = P(); const q = norm(S.q.trim()); const f = S.f;
   let a = p.records.filter(r => {
@@ -3068,7 +3146,7 @@ function filteredRecs() {
     if (f.tipo === 'corte') matchTipo = (r.type === 'estrato' && r.claseUE === 'negativa');
     else if (f.tipo === 'estrato') matchTipo = (r.type === 'estrato' && r.claseUE !== 'negativa');
     else if (f.tipo) matchTipo = (r.type === f.tipo);
-    return matchTipo && (!f.estado || r.status === f.estado) && (!f.hecho || r.hecho === f.hecho) && (!q || searchText(r).includes(q));
+    return matchTipo && (!f.estado || r.status === f.estado) && (!f.hecho || r.hecho === f.hecho) && matchOpt(f.fase, r.fase) && matchOpt(f.dat, datOf(r)) && (!q || searchText(r).includes(q));
   });
   const key = { ue: r => recSort(r), tipo: r => r.type, hecho: r => norm(r.hecho), datacion: r => norm(r.datacion || r.cronPrincipal), estado: r => r.status, mod: r => r.updatedAt, comp: r => completeness(r).pct }[f.sort] || (r => recSort(r));
   a.sort((x, y) => { const A = key(x), B = key(y); return (A < B ? -1 : A > B ? 1 : recSort(x) - recSort(y)) * f.dir; });
@@ -3082,6 +3160,9 @@ function viewList() {
     <div class="seg" role="group" aria-label="Tipo de ficha">${[['', 'Todas'], ['estrato', 'Estratos (+)'], ['corte', 'Cortes (−)'], ['estructura', 'Estructuras'], ['esqueleto', 'Esqueletos'], ['muraria', 'Catas/UEM']].map(([k, l]) => `<button data-act="ftipo" data-v="${k}" class="${S.f.tipo === k ? 'on' : ''}">${l}</button>`).join('')}</div>
     <select id="fest" aria-label="Estado del registro" style="width:auto"><option value="">Cualquier estado</option>${Object.entries(ESTADOS).map(([k, l]) => `<option value="${k}" ${S.f.estado === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
     <select id="fhecho" aria-label="Hecho" style="width:auto"><option value="">Todos los hechos</option>${hechos.map(h => `<option ${S.f.hecho === h ? 'selected' : ''}>${esc(h)}</option>`).join('')}</select>
+    ${filterSelect('ffase', 'Fase / Complejo', 'Todas las fases', S.f.fase, filterOpts(fases(p), p.records.map(r => r.fase)), 'Sin fase')}
+    ${filterSelect('fdat', 'Datación provisional', 'Todas las dataciones', S.f.dat, filterOpts(periodos(p), p.records.map(datOf)), 'Sin datación')}
+    ${S.f.tipo || S.f.estado || S.f.hecho || S.f.fase || S.f.dat ? `<button class="btn s g" data-act="clearfilters">Quitar filtros</button>` : ''}
     <div class="sp"><button class="btn" data-act="printbook">${ic('book')}Libro de registro (PDF)</button><button class="btn" data-act="exportcsv">${ic('table')}CSV</button></div></div>
   ${selN ? `<div class="banner info"><b>${selN} seleccionada${selN > 1 ? 's' : ''}</b><span class="sp"><button class="btn s" data-act="printsel">${ic('print', 15)}Imprimir / PDF</button><select id="bulkst" style="width:auto;min-height:30px;padding:2px 8px" aria-label="Cambiar estado"><option value="">Cambiar estado…</option>${Object.entries(ESTADOS).map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select><button class="btn s d" data-act="delsel">${ic('trash', 15)}Eliminar</button><button class="btn s g" data-act="clrsel">Quitar selección</button></span></div>` : ''}
   <div class="tbl" role="table" aria-label="Fichas del proyecto">
@@ -3102,7 +3183,7 @@ function viewCheck() {
 /* =====================  PROYECTO Y DATOS  ===================== */
 function pinp(label, key, o = {}) { const p = P(); const id = 'p_' + key; return `<label class="fld ${o.cls || ''}" for="${id}"><span class="lb">${label}</span>${o.area ? `<textarea id="${id}" data-p="${key}" rows="${o.rows || 4}">${esc(p.meta[key] || '')}</textarea>` : `<input id="${id}" type="text" data-p="${key}" value="${esc(p.meta[key] || '')}" ${o.list ? `list="${o.list}"` : ''} autocomplete="off">`}${o.hint ? `<span class="hint">${o.hint}</span>` : ''}</label>`; }
 function viewSettings() {
-  const p = P(); const nimg = (JSON.stringify(p, stripPriv).match(/im_[a-z0-9]+/g) || []).length;
+  const p = P(); const nimg = (JSON.stringify(p, stripPriv).match(/im_[a-z0-9]+/g) || []).length; const bst = backupStats(p);
   return `<section class="panel"><header style="display:flex;align-items:center;justify-content:space-between"><h2>Datos del proyecto</h2><a href="guia.html" target="_blank" class="btn s" style="text-decoration:none"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>Guía de uso práctica</a></header><div class="bd g g3">
     <label class="fld span2" for="p_name"><span class="lb">Nombre de la excavación</span><input id="p_name" type="text" data-pn="1" value="${esc(p.name)}"></label>${pinp('Acrónimo del yacimiento', 'acronimo', { hint: 'Se rellena solo en cada ficha nueva.' })}
     ${pinp('Yacimiento / solar', 'yacimiento')}${pinp('Dirección', 'direccion', { hint: 'Aparece en la cabecera de la cata muraria.' })}${pinp('Municipio', 'municipio')}
@@ -3114,13 +3195,15 @@ function viewSettings() {
     ${ueDigSelect('p_ueDigitos', p.meta.ueDigitos, 'data-p="ueDigitos"')}${pinp('Primer número de UE', 'ueInicio', { hint: 'Las fichas nuevas se numeran a partir de aquí (si se deja vacío, desde 1).' })}<span></span>
   </div></section>
   <div class="split"><section class="panel"><header><h2>Copias de seguridad</h2></header><div class="bd g" style="gap:12px">
-    <p class="muted" style="margin:0">La copia completa (.zip) contiene todas las fichas, relaciones, croquis y fotografías. Si el proyecto es grande se divide en varias partes de unos 100 MB: descárguelas todas y, para restaurar, selecciónelas a la vez en «Importar copia». También se pueden importar copias .json antiguas.</p>
-    <div class="row"><button class="btn p" data-act="exportjson">${ic('download')}Exportar copia completa (.zip)</button><button class="btn" data-act="exportjson" data-lite="1">Solo datos, sin fotos (.json)</button><button class="btn" data-act="importjson">${ic('upload')}Importar copia</button></div>
+    <p class="muted" style="margin:0">La <b>copia completa</b> (.zip) contiene todas las fichas, relaciones, croquis y fotografías. La <b>copia incremental</b> lleva también todas las fichas, pero solo las fotos que aún no han salido en ninguna copia: es la adecuada para el final de cada jornada en proyectos grandes. Si una copia es grande se divide en partes de unos 100 MB: descárguelas todas y, para restaurar, selecciónelas a la vez en «Importar copia». También se pueden importar copias .json antiguas.</p>
+    <div class="row"><button class="btn p" data-act="exportjson">${ic('download')}Exportar copia completa (.zip)</button><button class="btn" data-act="exportjson" data-inc="1" ${bst.sinCopia || bst.respaldadas || bst.archivadas ? '' : 'disabled'}>${ic('download')}Copia incremental: solo lo nuevo (.zip)</button><button class="btn" data-act="exportjson" data-lite="1">Solo datos, sin fotos (.json)</button><button class="btn" data-act="importjson">${ic('upload')}Importar copia</button></div>
+    <div class="faint" style="font-size:13px">Fotos sin copia todavía: <b>${bst.sinCopia}</b>${bst.sinCopia ? ' (' + fmtMB(bst.sinCopiaBytes) + ')' : ''} · ya incluidas en alguna copia: ${bst.respaldadas}${bst.archivadas ? ' · archivadas (solo miniatura): ' + bst.archivadas : ''}${p.lastFullBackup ? ' · última copia completa: ' + fmtDT(p.lastFullBackup) : ''}</div>
     <div class="row"><button class="btn p" data-act="exportmemoriadocx">${ic('file')}Descargar Memoria Técnica (.docx)</button><button class="btn" data-act="printbook">${ic('book')}Libro de registro oficial (PDF)</button></div>
     <div class="row"><button class="btn" data-act="exportcsv">${ic('table')}Exportar CSV (UEs)</button><button class="btn" data-act="exportgeojson">${ic('pin')}Exportar capa GeoJSON (QGIS)</button></div>
     <div class="faint" style="font-size:13px">Última copia: ${p.lastBackup ? fmtDT(p.lastBackup) : 'ninguna'} · ${nimg} imágenes en el proyecto · <span id="quota">calculando espacio…</span></div></div></section>
   <section class="panel"><header><h2>Proyectos</h2><div class="sp"><button class="btn s p" data-act="newproject">${ic('plus', 15)}Nuevo</button></div></header><div class="list">${S.projects.map(x => `<div class="it" style="cursor:default"><span style="flex:1;min-width:0"><b>${esc(x.name)}</b>${x.example ? ' <span class="tag">ejemplo</span>' : ''}<br><span class="faint" style="font-size:12.5px">${x.records.length} fichas · ${ago(x.updatedAt)}</span></span>${x.id === S.pid ? '<span class="tag st-completa st">Abierto</span>' : `<button class="btn s" data-act="openproject" data-id="${x.id}">Abrir</button>`}<button class="btn s ic d" data-act="delproject" data-id="${x.id}" aria-label="Borrar proyecto">${ic('trash', 15)}</button></div>`).join('')}</div></section></div>
-  <section class="panel"><header><h2>Mantenimiento</h2></header><div class="bd row"><button class="btn" data-act="cleanimgs">Liberar imágenes sin usar</button><span class="faint" style="font-size:13px">Elimina del navegador las fotografías y croquis que ya no están en ninguna ficha.</span></div></section>
+  <section class="panel"><header><h2>Mantenimiento</h2></header><div class="bd g" style="gap:12px"><div class="row"><button class="btn" data-act="cleanimgs">Liberar imágenes sin usar</button><span class="faint" style="font-size:13px">Elimina del navegador las fotografías y croquis que ya no están en ninguna ficha.</span></div>
+    <div class="row"><button class="btn" data-act="archiveimgs" ${bst.respaldadas ? '' : 'disabled'}>Archivar fotos ya respaldadas${bst.respaldadas ? ' (' + bst.respaldadas + ' · ' + fmtMB(bst.respaldadasBytes) + ')' : ''}</button><span class="faint" style="font-size:13px">Libera espacio en este dispositivo: las fotos que ya están en una copia de seguridad se sustituyen por una miniatura. Las fichas no cambian.</span></div></div></section>
   <section class="panel"><header><h2>Atajos de teclado</h2></header><div class="bd"><dl class="kv"><dt>Ctrl/⌘ + S</dt><dd>Guardar ahora</dd><dt>Ctrl/⌘ + P</dt><dd>Imprimir la ficha abierta</dd><dt>/</dt><dd>Ir al buscador</dd><dt>Alt + ← / →</dt><dd>Ficha anterior o siguiente</dd><dt>Enter en «Nº UE»</dt><dd>Añade la UE a la lista (admite rangos: 12-15)</dd></dl></div></section>`;
 }
 async function showQuota() {
@@ -4122,6 +4205,53 @@ const esqSearch = r => [esqLab(ESQ_SEXO, r.esq.sexo), esqLab(ESQ_EDAD, r.esq.eda
 
 /* =====================  EDITOR DE CROQUIS  ===================== */
 const SK_W = 1200, SK_H = 800;
+
+/* Trazos de croquis compactos: el proyecto entero se guarda en cada pausa al escribir, y los
+   trazos a mano alzada (cientos de puntos con 15 decimales, muchos repetidos) llegaban a ser
+   el 90 % de su tamaño. Se redondean a 0,1 px, se quitan puntos repetidos y se simplifica la
+   línea (Ramer-Douglas-Peucker, 0,4 px sobre un lienzo de 1200×800): no se nota a la vista. */
+const SK_EPS = 0.4;
+const r1 = v => Math.round(v * 10) / 10;
+function simplifyPts(pts) {
+  if (pts.length < 3) return pts;
+  const keep = new Uint8Array(pts.length); keep[0] = keep[pts.length - 1] = 1;
+  const stack = [[0, pts.length - 1]];
+  while (stack.length) {
+    const [a, b] = stack.pop(); const [ax, ay] = pts[a], [bx, by] = pts[b];
+    const dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy);
+    let maxD = -1, idx = -1;
+    for (let i = a + 1; i < b; i++) {
+      const [px, py] = pts[i];
+      const d = len ? Math.abs(dy * px - dx * py + bx * ay - by * ax) / len : Math.hypot(px - ax, py - ay);
+      if (d > maxD) { maxD = d; idx = i; }
+    }
+    if (maxD > SK_EPS) { keep[idx] = 1; stack.push([a, idx], [idx, b]); }
+  }
+  return pts.filter((_, i) => keep[i]);
+}
+function compactStroke(s) {
+  if (!s || typeof s !== 'object') return s;
+  const o = { ...s };
+  if (Array.isArray(o.pts)) {
+    const pts = [];
+    o.pts.forEach(p => { if (!Array.isArray(p)) return; const q = [r1(+p[0]), r1(+p[1])]; const l = pts[pts.length - 1]; if (!l || l[0] !== q[0] || l[1] !== q[1]) pts.push(q); });
+    o.pts = pts.length ? simplifyPts(pts) : o.pts;
+  }
+  if (Array.isArray(o.a)) o.a = o.a.map(v => r1(+v));
+  if (Array.isArray(o.b)) o.b = o.b.map(v => r1(+v));
+  if (typeof o.x === 'number') o.x = r1(o.x);
+  if (typeof o.y === 'number') o.y = r1(o.y);
+  return o;
+}
+// Recorre una ficha (o un proyecto) y compacta todos los arrays «strokes» que encuentre.
+function compactStrokesIn(obj) {
+  if (!obj || typeof obj !== 'object') return;
+  if (Array.isArray(obj)) { obj.forEach(compactStrokesIn); return; }
+  for (const k of Object.keys(obj)) {
+    if (k === 'strokes' && Array.isArray(obj[k])) obj[k] = obj[k].map(compactStroke);
+    else if (k[0] !== '_' && obj[k] && typeof obj[k] === 'object') compactStrokesIn(obj[k]);
+  }
+}
 const SK_FS = { 1: 18, 2: 24, 4: 36, 8: 56 };
 function segDist(px, py, ax, ay, bx, by) {
   const dx = bx - ax, dy = by - ay; const l2 = dx * dx + dy * dy; let t = l2 ? ((px - ax) * dx + (py - ay) * dy) / l2 : 0; t = Math.max(0, Math.min(1, t));
@@ -4164,7 +4294,7 @@ async function openSketch(path = 'croquis') {
     actions: [{ label: 'Cancelar' }, {
       label: 'Guardar croquis', cls: 'p', fn: async () => {
         const c = document.createElement('canvas'); c.width = SK_W; c.height = SK_H; render(c.getContext('2d'), false);
-        const id = await putImage(c); setPath(r, path, { img: id, bg: st.bg, strokes: st.strokes }); touch(r); refreshEditor(); toast('Croquis guardado');
+        const id = await putImage(c); setPath(r, path, { img: id, bg: st.bg, strokes: st.strokes.map(compactStroke) }); touch(r); refreshEditor(); toast('Croquis guardado');
       }
     }],
     onOpen: root => {
@@ -4458,7 +4588,7 @@ const ACT = {
   exportcsv() { const p = P(); const recs = (S.view === 'list' ? filteredRecs() : p.records).slice().sort((a, b) => recSort(a) - recSort(b)); saveFile(`registro-${slug(p.name)}-${today()}.csv`, toCSV(p, recs), 'text/csv;charset=utf-8'); },
   async exportjson(el) {
     const p = P(); await flush(); const lite = el && el.dataset.lite;
-    if (!lite) { try { await exportZipBackup(p); } catch (e) { console.error(e); toast('No se pudo generar la copia: ' + (e.message || e), 'err'); } return; }
+    if (!lite) { try { await exportZipBackup(p, el && el.dataset.inc ? 'incremental' : 'completa'); } catch (e) { console.error(e); toast('No se pudo generar la copia: ' + (e.message || e), 'err'); } return; }
     toast('Preparando copia de seguridad…');
     const b = await projectBundle(p, !lite);
     const ok = await saveFile(`${slug(p.name)}-${today()}${lite ? '-sin-imagenes' : ''}.json`, JSON.stringify(b), 'application/json');
@@ -4468,6 +4598,7 @@ const ACT = {
     const fs = await pickFiles('.zip,.json,application/zip,application/json', true); if (!fs.length) return;
     try { await importFiles(fs); } catch (e) { console.error(e); toast('No se pudo importar la copia: ' + (e.message || e), 'err'); }
   },
+  clearfilters() { Object.assign(S.f, { tipo: '', estado: '', hecho: '', fase: '', dat: '' }); renderView(); },
   pickopt(el) { openOptPicker(el.dataset.path, el.dataset.kind); },
   copylists() { const p = P(); copyListsModal(p, () => { if (S.view === 'settings') renderView(); }); },
   newproject() {
@@ -4507,6 +4638,37 @@ const ACT = {
     if (!S.projects.length) { const np = newProject('Mi excavación'); S.projects.push(np); await saveProjectNow(np); }
     if (S.pid === id) await switchProject(S.projects[0].id); else renderAll();
   },
+  // Botón del Panel: la primera vez, copia completa; después, solo lo nuevo.
+  async quickbackup() {
+    const p = P(); await flush();
+    const mode = p.lastFullBackup || [...IMG_META.values()].some(m => m.bk) ? 'incremental' : 'completa';
+    try { await exportZipBackup(p, mode); } catch (e) { console.error(e); toast('No se pudo generar la copia: ' + (e.message || e), 'err'); }
+  },
+  async archiveimgs() {
+    const p = P(); const st = backupStats(p);
+    if (!st.respaldadas) { toast('No hay fotos respaldadas que archivar.'); return; }
+    const ok = await ask({
+      title: 'Archivar fotos ya respaldadas', ok: 'Archivar ' + st.respaldadas + ' fotos',
+      msg: `Las <b>${st.respaldadas} fotos</b> (${fmtMB(st.respaldadasBytes)}) que ya han salido en una copia de seguridad se sustituirán en este dispositivo por una <b>miniatura</b>. Las fichas no cambian.<br><br>• Las miniaturas no se incluyen en las copias siguientes, así que los originales solo estarán en las copias ya hechas: <b>guárdelas bien</b> (o compruebe que el director ya las ha importado).<br>• En este dispositivo, las fichas impresas y la Memoria Word mostrarán esas fotos en baja resolución.<br>• Para recuperar los originales, importe la copia que los contiene.`
+    });
+    if (!ok) return;
+    const prog = progressToast('Archivando fotos…'); let n = 0, freed = 0;
+    try {
+      for (const id of projectImageIds(p)) {
+        const m = IMG_META.get(id) || {}; const blob = RAW_BLOBS.get(id);
+        if (!blob || m.arch || !m.bk) continue;
+        try {
+          const th = await makeThumb(blob, 480, 0.7); if (!th || th.size >= blob.size) continue;
+          m.arch = true; IMG_META.set(id, m);
+          await idbPut('images', imgRow(id, p.id, th));
+          const old = IMG.get(id); RAW_BLOBS.set(id, th); IMG.set(id, URL.createObjectURL(th));
+          if (old && old.startsWith('blob:')) setTimeout(() => URL.revokeObjectURL(old), 60000);
+          n++; freed += blob.size - th.size; prog.set(`Archivando fotos… ${n} de ${st.respaldadas}`);
+        } catch (e) { console.warn('No se pudo archivar', id, e); }
+      }
+    } finally { prog.done(); }
+    toast(`${n} fotos archivadas: ${fmtMB(freed)} liberados en el dispositivo.`); renderView();
+  },
   async cleanimgs() {
     const p = P(); const used = new Set(JSON.stringify(p, stripPriv).match(/im_[a-z0-9]+/g) || []); let n = 0;
     for (const id of [...IMG.keys()]) {
@@ -4517,6 +4679,7 @@ const ACT = {
         }
         IMG.delete(id);
         RAW_BLOBS.delete(id);
+        IMG_META.delete(id);
         await idbDel('images', id);
         n++;
       }
@@ -4569,7 +4732,7 @@ function createRec(type, ue) {
   setTimeout(() => { const f = $('#f_hecho') || $('#f_ubicacion'); if (f) f.focus({ preventScroll: true }); }, 50);
 }
 async function switchProject(id) {
-  await flush(); S.pid = id; lsSet('reg-pid', id); await loadImages(id); S.rid = null; S.sel.clear(); S.hv.sel = null; S.hv.hecho = ''; HV.fit = true; S.view = 'panel'; renderAll(); window.scrollTo({ top: 0 });
+  await flush(); S.pid = id; lsSet('reg-pid', id); await loadImages(id); S.rid = null; S.sel.clear(); S.hv.sel = null; S.hv.hecho = ''; S.f.fase = ''; S.f.dat = ''; S.f.hecho = ''; HV.fit = true; S.view = 'panel'; renderAll(); window.scrollTo({ top: 0 });
 }
 
 /* =====================  EVENTOS  ===================== */
@@ -4603,6 +4766,8 @@ document.addEventListener('change', e => {
     case 'pjsel': return switchProject(t.value);
     case 'fest': S.f.estado = t.value; return renderView();
     case 'fhecho': S.f.hecho = t.value; return renderView();
+    case 'ffase': S.f.fase = t.value; return renderView();
+    case 'fdat': S.f.dat = t.value; return renderView();
     case 'selall': { const a = filteredRecs(); if (t.checked) a.forEach(r => S.sel.add(r.id)); else a.forEach(r => S.sel.delete(r.id)); return renderView(); }
     case 'bulkst': { if (!t.value) return; const p = P(); p.records.filter(r => S.sel.has(r.id)).forEach(r => { r.status = t.value; r.updatedAt = Date.now(); }); touch(); renderAll(); return toast('Estado actualizado'); }
     case 'hhecho': S.hv.hecho = t.value; S.hv.sel = null; HV.fit = true; return renderView();
@@ -4713,9 +4878,11 @@ function updateNetStatus() {
 
   // 2. Base de datos IndexedDB y proyectos
   try { await idbOpen(); } catch (e) { }
-  let ps = []; try { ps = await idbAll('projects'); } catch (e) { }
+  let ps = []; try { ps = (await idbAll('projects')).map(projectFromRow).filter(x => x && Array.isArray(x.records)); } catch (e) { }
   if (!ps.length) { const ex = makeExample(); ps = [ex]; await saveProjectNow(ex); }
   ps.forEach(p => { if (!p.finds) p.finds = []; if (!p.samples) p.samples = []; p.records.forEach(r => { if (r.type === 'muraria' && !r.ues) r.ues = []; }); });
+  // Una sola vez por proyecto: compactar los trazos de croquis guardados por versiones anteriores.
+  for (const p of ps) { if (p.meta && !p.meta.croqV) { compactStrokesIn(p.records); p.meta.croqV = 1; await saveProjectNow(p); } }
   S.projects = ps; const last = lsGet('reg-pid', null); S.pid = (ps.find(p => p.id === last) || ps[0]).id;
   await loadImages(S.pid); const v = lsGet('reg-view', 'panel'); S.view = ['panel', 'list', 'harris', 'check', 'settings'].includes(v) ? v : 'panel';
   if (!IDB.ok) setSaveState('memory');

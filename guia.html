@@ -525,7 +525,9 @@
             <br>• <strong>Importación de copias .json antiguas</strong>, aunque ocupen cientos de MB.
             <br>• <strong>Fotos más ligeras en el iPad</strong>: se guardan en JPEG en lugar de PNG (unas 10 veces menos espacio) y las ya guardadas se optimizan solas.
             <br>• <strong>Desplegables de Fase / Complejo y Datación provisional</strong> configurables en cada proyecto, copiables de otro yacimiento. <a href="#sec-2">Ver sección 2</a>.
+            <br>• <strong>Filtros por Fase y por Datación</strong> en la lista de fichas, que también limitan el Libro de registro y el CSV.
             <br>• <strong>Numeración de las fichas desde 0001</strong> y primer número de UE configurable.
+            <br>• <strong>Preparada para excavaciones grandes</strong> (probada con 700 fichas): copia incremental diaria, archivo de fotos ya respaldadas y guardado mucho más rápido de proyectos con croquis. <a href="#sec-12">Ver sección 12</a>.
           </p>
         </div>
       </section>
@@ -652,6 +654,7 @@ CONTEMPORÁNEO</pre>
             <li>La <strong>Fase / Complejo</strong> aparece también en la ficha impresa (estrato, estructura y esqueleto).</li>
           </ul>
           <p><strong>Cómo se usan en la ficha.</strong> Junto a los campos <em>Fase / Complejo</em> y <em>Datación provisional</em> hay un botón <span class="ui-pill">▾</span>. Al tocarlo se abre la lista del proyecto: toca una opción y el campo queda relleno. Si la opción no está en la lista, puedes escribir el valor a mano en el propio campo.</p>
+          <p><strong>Buscar fichas por fase o datación.</strong> En la vista <span class="ui-pill">Fichas</span>, junto a «Todos los hechos», hay dos desplegables: <span class="ui-pill">Todas las fases</span> y <span class="ui-pill">Todas las dataciones</span>. Muestran las opciones de las listas del proyecto y también cualquier valor escrito a mano en alguna ficha. Las opciones <em>Sin fase</em> y <em>Sin datación</em> localizan las fichas que faltan por completar. Se combinan con el resto de filtros y con el buscador (por ejemplo: estratos de la Fase III con datación MODERNO), y el botón <span class="ui-pill">Quitar filtros</span> los borra todos. Con un filtro activo, <span class="ui-pill">Libro de registro (PDF)</span> y <span class="ui-pill">CSV</span> salen solo con las fichas filtradas: así se imprime o exporta una fase concreta. El buscador general también encuentra texto del campo Fase. En las catas murarias, el filtro de datación usa su <em>Cronología principal</em>.</p>
           <p><strong>Cambiar las listas en cualquier momento</strong> (por ejemplo, si durante la excavación aparece una fase nueva):</p>
           <ul>
             <li>Desde la propia ficha: <span class="ui-pill">▾</span> &rarr; <span class="ui-pill">Editar la lista…</span>, cambia el texto y pulsa <span class="ui-pill primary">Guardar lista</span>. Vuelves a la lista ya actualizada.</li>
@@ -755,7 +758,7 @@ CONTEMPORÁNEO</pre>
         <ul>
           <li><strong>Métricas de Completitud:</strong> El indicador de porcentaje calcula automáticamente si las fichas tienen rellenos los campos críticos (cotas, descripción, interpretación y relaciones estratigráficas). Si está por debajo del 80%, indica que hay fichas incompletas que requieren atención.</li>
           <li><strong>Alertas de Control de Calidad:</strong> La sección <em>Control</em> te avisa si existen relaciones contradictorias (por ejemplo, si la UE 4 cubre a la UE 5 pero la UE 5 declara que cubre a la UE 4, o si una ficha no tiene cotas superiores).</li>
-          <li><strong>Copia de Seguridad Rápida:</strong> Un botón prominente <span class="ui-pill primary">Copia de seguridad</span> te recuerda si han pasado más de 24 horas desde la última copia. <strong>Descarga siempre una copia al finalizar cada jornada de campo</strong>.</li>
+          <li><strong>Copia de Seguridad Rápida:</strong> Un botón prominente <span class="ui-pill primary">Copia de seguridad</span> te recuerda si han pasado más de 24 horas desde la última copia. La primera vez hace una copia completa; las siguientes, una <strong>copia incremental</strong> (solo lo nuevo). <strong>Descarga siempre una copia al finalizar cada jornada de campo</strong>.</li>
         </ul>
       </article>
 
@@ -1153,6 +1156,11 @@ CONTEMPORÁNEO</pre>
                 <td><strong>La copia de seguridad normal.</strong> Todas las fichas, relaciones, croquis, materiales, muestras y fotografías. Úsala al final de cada jornada y para pasar el proyecto a otro dispositivo.</td>
               </tr>
               <tr>
+                <td><span class="ui-pill">Copia incremental: solo lo nuevo (.zip)</span></td>
+                <td><code>convento-2026-11-13-incremental.zip</code></td>
+                <td><strong>La copia diaria en proyectos grandes.</strong> Todas las fichas (ocupan poco) y solo las fotos que todavía no han salido en ninguna copia. Una jornada normal son unas decenas de MB en lugar de varios GB.</td>
+              </tr>
+              <tr>
                 <td><span class="ui-pill">Solo datos, sin fotos (.json)</span></td>
                 <td><code>convento-2026-11-12-sin-imagenes.json</code></td>
                 <td>Solo los datos (unos pocos KB). Útil para enviar por correo el estado de las fichas, pero <strong>no sirve como copia de seguridad completa</strong> porque no lleva fotos ni croquis.</td>
@@ -1271,6 +1279,45 @@ CONTEMPORÁNEO</pre>
         <p>
           Las versiones anteriores de la app guardaban en el iPad las fotos en formato PNG (6–8 MB cada una). Ahora se guardan en JPEG (0,3–0,8 MB). Las fotos PNG que ya estaban guardadas se convierten solas en segundo plano al abrir el proyecto: verás <em>«Optimizando N fotos guardadas para ahorrar espacio…»</em> y, al terminar, <em>«N fotos optimizadas: X MB liberados en el dispositivo»</em>. Puedes seguir trabajando mientras tanto; si cierras la app, continúa la próxima vez.
         </p>
+
+        <h3>Copia incremental: la rutina diaria en proyectos grandes</h3>
+        <p>
+          Cuando un proyecto acumula cientos o miles de fotos, una copia completa diaria serían decenas de archivos. La app recuerda qué fotos han salido ya en alguna copia y, con <span class="ui-pill">Copia incremental: solo lo nuevo (.zip)</span>, exporta todas las fichas pero solo las fotos nuevas. Debajo de los botones verás cuántas fotos quedan sin copia y cuánto ocupan.
+        </p>
+        <div class="step-card">
+          <div class="step-title">Rutina recomendada</div>
+          <ol>
+            <li>El primer día (o una vez por semana), una <strong>copia completa</strong>.</li>
+            <li>Cada tarde, una <strong>copia incremental</strong> (el botón <span class="ui-pill primary">Copia de seguridad</span> del Panel ya la hace sola cuando existe una copia anterior).</li>
+            <li>Guarda todas las copias en la misma carpeta, con su fecha. <strong>No borres las incrementales</strong>: cada una contiene fotos que no están en ninguna otra.</li>
+          </ol>
+          <p><strong>Para restaurar</strong> un proyecto en un dispositivo nuevo: importa la última copia completa y después cada incremental, de la más antigua a la más reciente, eligiendo <span class="ui-pill primary">Fusión Inteligente</span>. Si importas una incremental en un dispositivo que no tiene el proyecto, la app te avisa de que faltan las fotos anteriores.</p>
+        </div>
+
+        <h3>Archivar fotos ya respaldadas (liberar espacio en el iPad)</h3>
+        <p>
+          En <span class="ui-pill">Proyecto y datos</span> &rarr; <em>Mantenimiento</em>, el botón <span class="ui-pill">Archivar fotos ya respaldadas</span> sustituye en este dispositivo las fotos que ya han salido en una copia por una <strong>miniatura</strong> (unos 30–60 KB en lugar de 0,5–0,8 MB). Las fichas no cambian y siguen mostrando sus fotos, en baja resolución. En una prueba con las 81 fotos de Santa Clara, el espacio ocupado bajó de 61 MB a 2,7 MB.
+        </p>
+        <div class="callout warn">
+          <div class="callout-title">Antes de archivar</div>
+          <p>Las miniaturas no se incluyen en las copias siguientes (para no sustituir los originales en otro equipo), así que los originales solo estarán en las copias ya hechas. Archiva únicamente cuando esas copias estén guardadas en lugar seguro o el director ya las haya importado en su ordenador. Para recuperar un original en el iPad, importa la copia que lo contiene. Las fichas impresas y la Memoria Word hechas en ese iPad mostrarán las fotos archivadas en baja resolución: genéralas en el ordenador del director.</p>
+        </div>
+
+        <h3>Excavaciones grandes: dividir por dispositivo, no por proyecto</h3>
+        <p>
+          La app se ha probado con un proyecto de <strong>700 fichas</strong> (con croquis en un tercio de ellas): la lista, las fichas, la matriz de Harris y la revisión responden en torno a una décima de segundo, y el guardado mientras se escribe tarda también alrededor de una décima de segundo en un ordenador (algo más en un iPad). Lo que más pesa son las fotos: con 5–10 por ficha, 700 fichas suman entre 2 y 5 GB. Para repartir ese peso:
+        </p>
+        <div class="step-card">
+          <ol>
+            <li><strong>Un único proyecto para toda la excavación</strong>, creado por el director con sus fases y dataciones. Así se mantiene una sola matriz de Harris, una sola numeración y una sola Memoria.</li>
+            <li>El director pasa una copia del proyecto a cada iPad (<span class="ui-pill">Importar copia</span>).</li>
+            <li>En cada iPad se pone un <strong>«Primer número de UE»</strong> distinto (equipo A desde 1, equipo B desde 1001…). Ese ajuste es propio de cada dispositivo, así que los números no chocan.</li>
+            <li>Cada arqueólogo registra su sección: su iPad solo guarda sus propias fotos.</li>
+            <li>Cada tarde, copia incremental; el director la importa con <span class="ui-pill primary">Fusión Inteligente</span> en su ordenador, que tiene espacio de sobra.</li>
+            <li>Cuando un iPad se llene, <em>Archivar fotos ya respaldadas</em>.</li>
+          </ol>
+          <p>Dividir la excavación en varios proyectos <strong>no ahorra espacio</strong> si están en el mismo iPad (todos los proyectos comparten el almacenamiento de la app) y obliga a tener matrices de Harris y Memorias separadas.</p>
+        </div>
 
         <h3>Mensajes que pueden aparecer</h3>
         <div class="table-box">
@@ -1408,6 +1455,13 @@ CONTEMPORÁNEO</pre>
           <div class="step-title">¿Cómo evito que el navegador limpie la memoria si queda poco espacio?</div>
           <p>
             La aplicación solicita automáticamente al sistema el permiso de almacenamiento persistente (<code>navigator.storage.persist()</code>). Esto le indica al sistema operativo Android, iOS o Windows que los datos de la excavación son <em>protegidos</em> y no deben borrarse nunca en limpiezas automáticas de caché.
+          </p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title">¿Se puede llevar una excavación de 700 fichas con la app?</div>
+          <p>
+            Sí. Está probada con 700 fichas y responde con fluidez. La clave está en las fotos: usa la copia incremental cada día, reparte el trabajo por dispositivos y archiva en el iPad las fotos ya respaldadas. El método detallado está en la <a href="#sec-12">sección 12</a>.
           </p>
         </div>
 

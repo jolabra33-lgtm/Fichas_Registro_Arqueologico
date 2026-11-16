@@ -43,7 +43,9 @@ Aplicación web profesional y **Progressive Web App (PWA)** de registro arqueol�
 * **Fusión Inteligente de Jornada (Smart Merge):** Permite sincronizar el trabajo de varios arqueólogos con distintas tabletas al final del día sin sobrescribir información.
 * **Copias de seguridad sin límite práctico de fotos:** La copia completa se exporta en ZIP con las fotos como archivos y, si el proyecto es grande, se divide en partes de unos 100 MB. Probado con 500 fotos.
 * **Desplegables configurables por proyecto:** Las opciones de *Fase / Complejo* y *Datación provisional* se definen al crear el proyecto, se pueden copiar de otra campaña del mismo yacimiento y se cambian en cualquier momento.
+* **Filtros por Fase y por Datación** en la lista de fichas, combinables con el resto de filtros; el Libro de registro (PDF) y el CSV salen solo con las fichas filtradas.
 * **Numeración de fichas configurable:** UE 1, 001, 0001 (por defecto) o 00001, y primer número de UE ajustable para cada campaña.
+* **Preparada para excavaciones grandes (probada con 700 fichas):** copia incremental diaria (solo las fotos nuevas), archivo de fotos ya respaldadas para liberar espacio en el iPad y guardado rápido de proyectos con muchos croquis (trazos compactados y proyecto guardado como texto JSON).
 * **Fotos ligeras:** Las fotos se reducen a 2048 px y se guardan en WebP o JPEG (también en iPad); las guardadas en PNG por versiones anteriores se optimizan automáticamente.
 
 ---
@@ -95,6 +97,7 @@ La aplicación cuenta con una arquitectura basada en **Service Worker (`sw.js`)*
 ## 💾 Exportación y Compatibilidad Documental
 
 * **Copia de Seguridad Completa (.zip):** Exporta el proyecto completo (fichas, cotas, croquis, materiales, muestras y fotos). Cada archivo ZIP contiene `registro.json` con los datos y una carpeta `fotos/`. Los proyectos grandes se dividen en partes de unos 100 MB que se importan juntas (o una a una, mediante la Fusión Inteligente).
+* **Copia incremental (.zip):** Todas las fichas y solo las fotos que aún no han salido en ninguna copia. Para restaurar: la última copia completa y después las incrementales, por orden, con la Fusión Inteligente.
 * **Copia solo de datos (.json):** Las fichas sin fotos, en un archivo de pocos KB.
 * **Importación de copias antiguas (.json):** Se admiten las copias JSON de versiones anteriores, aunque ocupen cientos de MB: se leen por trozos sin cargarlas enteras en memoria.
 * **Memoria Técnica Word (.docx):** Plantilla editorial con cuadros tipográficos formateados lista para entregar a la administración de Patrimonio Cultural.
