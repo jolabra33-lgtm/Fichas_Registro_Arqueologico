@@ -2450,7 +2450,8 @@ async function generateTechnicalReportDOCX(p) {
 </w:styles>`);
 
   const meta = p.meta || {};
-  const recs = [...(p.records || [])].sort((a, b) => (a.ue || a.num || 0) - (b.ue || b.num || 0));
+  // UE por número y, al final, las catas murarias (tienen numeración propia).
+  const recs = [...(p.records || [])].sort((a, b) => ((a.type === 'muraria') - (b.type === 'muraria')) || ((a.ue || a.num || 0) - (b.ue || b.num || 0)));
   const finds = p.finds || [];
   const samples = p.samples || [];
 
@@ -2508,12 +2509,13 @@ async function generateTechnicalReportDOCX(p) {
   body += docxH1Xml('2. Periodización y Fases Estratigráficas');
   body += docxPXml('La ordenación crono-cultural y la seriación de la secuencia estratigráfica se articula en las siguientes fases definidas en el proyecto:');
 
-  const fasesRaw = (meta.fases || '').split('\n').map(s => s.trim()).filter(Boolean);
+  // Fases de la lista del proyecto y, a continuación, las escritas a mano en las fichas que no están en la lista.
+  const fasesRaw = [...new Set([...fases(p), ...recs.map(r => (r.fase || '').trim()).filter(Boolean)])];
 
   const fasesTable = [['Fase Estratigráfica', 'UEs Asociadas', 'Descripción / Horizontes']];
   if (fasesRaw.length) {
     fasesRaw.forEach(f => {
-      const uesInPhase = recs.filter(r => r.fase === f).map(r => r.ue || r.num).filter(Boolean);
+      const uesInPhase = recs.filter(r => (r.fase || '').trim() === f).map(r => r.ue || r.num).filter(Boolean);
       fasesTable.push([f, uesInPhase.length ? `${uesInPhase.length} UEs (${uesInPhase.slice(0, 10).map(x => fu(x)).join(', ')}${uesInPhase.length > 10 ? '...' : ''})` : 'Sin UEs asignadas', 'Fase estratigráfica del modelo']);
     });
   } else {
@@ -2541,20 +2543,22 @@ async function generateTechnicalReportDOCX(p) {
 
     const ueRows = [
       ['Parámetro', 'Registro y Descripción Técnica'],
-      ['Identificación & Ficha', `Tipo: ${tipoLabel} · Sector: ${r.sector || '—'} · Cuadrícula: ${r.cuadricula || '—'} · Campaña: ${meta.anio || '—'} · Autor: ${r.autor || '—'} · Fecha: ${r.fecha || '—'}`],
+      ['Identificación & Ficha', `Tipo: ${tipoLabel} · Localización: ${r.localizacion || r.ubicacion || '—'} · Hecho: ${r.hecho || '—'} · Campaña: ${meta.anio || '—'} · Autor: ${r.autor || '—'} · Fecha: ${r.fecha || '—'}`],
       ['Fase & Cronología', `Fase: ${r.fase || 'Sin fase'} · Periodo / Datación: ${r.datacion || r.cronPrincipal || 'Indeterminada'}${r.basadaEn ? ' (' + r.basadaEn + ')' : ''}`]
     ];
 
     // Cotas
     if (r.cotas && r.cotas.length && (r.cotas[0].sup || r.cotas[0].inf)) {
       const c1 = r.cotas[0];
-      const esp = (c1.sup && c1.inf && !isNaN(c1.sup) && !isNaN(c1.inf)) ? (Number(c1.sup) - Number(c1.inf)).toFixed(2) + ' m' : '—';
+      const num = v => parseFloat(String(v || '').replace(',', '.')); // las cotas se escriben con coma decimal
+      const esp = (!isNaN(num(c1.sup)) && !isNaN(num(c1.inf))) ? (num(c1.sup) - num(c1.inf)).toFixed(2).replace('.', ',') + ' m' : '—';
       ueRows.push(['Cotas Altimétricas', `Cota Superior (Z1): ${c1.sup || '—'} m · Cota Inferior (Z2): ${c1.inf || '—'} m · Potencia / Espesor: ${esp}`]);
     }
 
     // Coordenadas GPS/UTM
     if (r.geo && r.geo.utmX && r.geo.utmY) {
-      ueRows.push(['Coordenadas UTM (ETRS89)', `Huso: ${r.geo.zone || '30N'} · X: ${r.geo.utmX.toFixed(2)} m · Y: ${r.geo.utmY.toFixed(2)} m · Z: ${r.geo.alt ? r.geo.alt.toFixed(2) + ' m' : '—'} (Precisión: ±${r.geo.acc ? r.geo.acc.toFixed(1) + 'm' : '—'})`]);
+      const g = r.geo, n2 = (v, d) => (v === '' || v == null || isNaN(v)) ? '—' : Number(v).toFixed(d);
+      ueRows.push(['Coordenadas UTM (ETRS89)', `Huso: ${g.zone ? g.zone + 'N' : '30N'} · X: ${n2(g.utmX, 2)} m · Y: ${n2(g.utmY, 2)} m · Z: ${g.alt ? n2(g.alt, 2) + ' m' : '—'} (Precisión: ±${g.acc ? n2(g.acc, 1) + ' m' : '—'})`]);
     }
 
     // Morfología según tipo
@@ -2568,7 +2572,7 @@ async function generateTechnicalReportDOCX(p) {
     } else if (r.type === 'estrato') {
       const comps = [];
       if (r.comentario) comps.push(r.comentario);
-      if (r.naturaleza) comps.push(`Naturaleza: ${r.naturaleza}`);
+      if (r.naturaleza) comps.push(`Naturaleza: ${({ natural: 'Natural', antropico: 'Antrópico' })[r.naturaleza] || r.naturaleza}`);
       if (r.ff && r.ff.pct) comps.push(`Fracción fina: ${r.ff.pct}%`);
       if (r.fg && r.fg.pct) comps.push(`Fracción gruesa: ${r.fg.pct}%`);
       ueRows.push(['Composición & Matriz', comps.length ? comps.join(' · ') : (r.descripcion || '—')]);
@@ -2580,7 +2584,10 @@ async function generateTechnicalReportDOCX(p) {
       if (f.tapia && f.tapia.tipo) ueRows.push(['Fábrica de Tapia', `Tipo: ${f.tapia.tipo} · Masa: ${f.tapia.masa || '—'}`]);
     } else if (r.type === 'esqueleto') {
       const eq = r.esq || {};
-      ueRows.push(['Registro Antropológico & Funerario', `Tipo sepultura: ${eq.sepultura || '—'} · Ritual: ${eq.ritual || '—'} · Posición: ${eq.posicion || '—'} · Sexo: ${eq.sexo || '—'} · Edad estimada: ${eq.edad || '—'} · Conservación: ${r.conservacion || '—'}`]);
+      const ctx = eq.ctx || {};
+      const sep = ctx.sepultura === 'otra' ? (ctx.sepOtra || 'Otra') : esqLab(ESQ_SEPULTURA, ctx.sepultura);
+      const rit = ({ inhumacion: 'Inhumación', incineracion: 'Incineración' })[eq.ritual] || eq.ritual;
+      ueRows.push(['Registro Antropológico & Funerario', `Tipo sepultura: ${sep || '—'} · Ritual: ${rit || '—'} · Posición: ${esqLab(ESQ_POS, eq.posGral) || '—'} · Orientación: ${eq.grados ? eq.grados + '°' : '—'} · Sexo: ${esqLab(ESQ_SEXO, eq.sexo) || '—'} · Edad estimada: ${esqLab(ESQ_EDAD, eq.edad) || '—'}${eq.edadAnos ? ' (' + eq.edadAnos + (/año/i.test(eq.edadAnos) ? '' : ' años') + ')' : ''} · Conservación: ${r.conservacion || '—'}`]);
     } else if (r.type === 'muraria') {
       const u = r.uem || {};
       ueRows.push(['Análisis Estratigráfico Murario', `Acción: ${u.accion || '—'} · Técnica: ${u.tecnica || '—'} · Paramento: ${u.paramento || '—'} · Elementos: ${u.elementos || '—'}`]);
@@ -2593,21 +2600,12 @@ async function generateTechnicalReportDOCX(p) {
 
     // Relaciones estratigráficas
     if (r.rel) {
-      const relAnt = [];
-      if (r.rel.cubre && r.rel.cubre.length) relAnt.push(`Cubre a UE: ${r.rel.cubre.join(', ')}`);
-      if (r.rel.apoya && r.rel.apoya.length) relAnt.push(`Apoya sobre UE: ${r.rel.apoya.join(', ')}`);
-      if (r.rel.corta && r.rel.corta.length) relAnt.push(`Corta a UE: ${r.rel.corta.join(', ')}`);
-      if (r.rel.llena && r.rel.llena.length) relAnt.push(`Llena a UE: ${r.rel.llena.join(', ')}`);
-
-      const relPost = [];
-      if (r.rel.cubierto && r.rel.cubierto.length) relPost.push(`Cubierto por UE: ${r.rel.cubierto.join(', ')}`);
-      if (r.rel.apoyado && r.rel.apoyado.length) relPost.push(`Apoyado por UE: ${r.rel.apoyado.join(', ')}`);
-      if (r.rel.cortado && r.rel.cortado.length) relPost.push(`Cortado por UE: ${r.rel.cortado.join(', ')}`);
-      if (r.rel.llenado && r.rel.llenado.length) relPost.push(`Llenado por UE: ${r.rel.llenado.join(', ')}`);
-
-      const relSinc = [];
-      if (r.rel.igual && r.rel.igual.length) relSinc.push(`Igual a UE: ${r.rel.igual.join(', ')}`);
-      if (r.rel.adosa && r.rel.adosa.length) relSinc.push(`Se adosa a UE: ${r.rel.adosa.join(', ')}`);
+      // Mismas claves que la ficha (REL): POSTERIOR = esta UE es posterior a las citadas (las citadas son anteriores).
+      const relTxt = set => REL.filter(d => set(d.k) && r.rel[d.k] && r.rel[d.k].length)
+        .map(d => `${d.l} UE ${r.rel[d.k].map(n => fu(n)).join(', ')}`);
+      const relAnt = relTxt(k => POSTERIOR.has(k));
+      const relPost = relTxt(k => ANTERIOR.has(k));
+      const relSinc = relTxt(k => k === 'igual' || k === 'equivale');
 
       if (relAnt.length) ueRows.push(['Relaciones Anteriores (Infrayacentes)', relAnt.join(' | ')]);
       if (relPost.length) ueRows.push(['Relaciones Posteriores (Suprayacentes)', relPost.join(' | ')]);
@@ -2617,7 +2615,7 @@ async function generateTechnicalReportDOCX(p) {
     // Materiales y muestras
     const ueFinds = finds.filter(f => Number(f.ue) === Number(r.ue));
     if (ueFinds.length) {
-      ueRows.push(['Materiales Asociados (Inventario)', ueFinds.map(f => `${f.sigla || 'Pza'} (${f.categoria || 'Mat'}: ${f.descripcion || 'Sin desc'})`).join('; ')]);
+      ueRows.push(['Materiales Asociados (Inventario)', ueFinds.map(f => `${f.sigla || 'Pza'} (${f.tipoMaterial || 'Material'}${f.clase ? ', ' + f.clase : ''}: ${f.descripcion || 'Sin desc'})`).join('; ')]);
     }
     const ueSamples = samples.filter(s => Number(s.ue) === Number(r.ue));
     if (ueSamples.length) {
@@ -2633,19 +2631,19 @@ async function generateTechnicalReportDOCX(p) {
   body += docxPXml('Relación exhaustiva de los materiales arqueológicos muebles recuperados, catalogados y siglados por Unidad Estratigráfica:');
 
   const findsTable = [
-    ['Sigla / N.º', 'UE', 'Categoría', 'Descripción y Tipología', 'Frags', 'Peso (g)', 'Bolsa / Caja', 'Siglado']
+    ['Sigla / N.º', 'UE', 'Categoría', 'Descripción y Tipología', 'Frags', 'Peso (g)', 'Bolsa / Caja', 'Estado']
   ];
   if (finds.length) {
     finds.forEach(f => {
       findsTable.push([
         f.sigla || '—',
         f.ue != null ? `UE ${fu(f.ue)}` : '—',
-        f.categoria || '—',
-        f.descripcion || '—',
+        f.tipoMaterial || '—',
+        [f.clase, f.descripcion].filter(Boolean).join('. ') || '—',
         String(f.numFragmentos || 1),
         String(f.pesoGramos || '—'),
-        `${f.caja || '—'}${f.bolsa ? ' / ' + f.bolsa : ''}`,
-        f.siglado ? 'Sí' : 'No'
+        f.cajaBolsa || '—',
+        MAT_ESTADOS[f.estado] || f.estado || '—'
       ]);
     });
   } else {
@@ -2669,7 +2667,7 @@ async function generateTechnicalReportDOCX(p) {
         s.fecha || '—',
         s.cotaXYZ || '—',
         s.laboratorio || s.codigoLab || '—',
-        s.estado || 'En campo'
+        SMP_ESTADOS[s.estado] || s.estado || 'En campo'
       ]);
     });
   } else {
@@ -2682,7 +2680,7 @@ async function generateTechnicalReportDOCX(p) {
   body += docxPXml('Índice maestro de concordancias de todas las Unidades Estratigráficas de la excavación:');
 
   const libroTable = [
-    ['UE', 'Clase / Tipo', 'Sector', 'Definición / Interpretación', 'Fase', 'Cotas (Sup/Inf)', 'Relaciones Inmediatas']
+    ['UE', 'Clase / Tipo', 'Localización', 'Definición / Interpretación', 'Fase', 'Cotas (Sup/Inf)', 'Relaciones Inmediatas']
   ];
   if (recs.length) {
     recs.forEach(r => {
@@ -2690,16 +2688,12 @@ async function generateTechnicalReportDOCX(p) {
       const c1 = (r.cotas && r.cotas[0]) || {};
       const cotasStr = (c1.sup || c1.inf) ? `${c1.sup || '—'} / ${c1.inf || '—'}` : '—';
       const rels = [];
-      if (r.rel) {
-        if (r.rel.cubre && r.rel.cubre.length) rels.push(`Cubre: ${r.rel.cubre.join(',')}`);
-        if (r.rel.corta && r.rel.corta.length) rels.push(`Corta: ${r.rel.corta.join(',')}`);
-        if (r.rel.cubierto && r.rel.cubierto.length) rels.push(`Bajo: ${r.rel.cubierto.join(',')}`);
-      }
+      if (r.rel) REL.forEach(d => { if (r.rel[d.k] && r.rel[d.k].length) rels.push(`${d.l}: ${r.rel[d.k].map(n => fu(n)).join(', ')}`); });
       libroTable.push([
         r.ue != null ? `UE ${fuDoc(r.ue, 3)}` : (r.num != null ? `CATA ${fu(r.num)}` : 'UE'),
-        isNeg ? 'Negativa (−)' : (r.type === 'estrato' ? 'Positiva (+)' : r.type),
-        r.sector || '—',
-        (r.interpretacion || r.descripcion || 'Sin definir').slice(0, 50),
+        isNeg ? 'Negativa (−)' : (r.type === 'estrato' ? 'Positiva (+)' : (TIPOS[r.type] && TIPOS[r.type].label) || r.type),
+        r.localizacion || r.ubicacion || '—',
+        (t => t.length > 90 ? t.slice(0, 90).replace(/\s+\S*$/, '') + '…' : t)(r.interpretacion || r.descripcion || 'Sin definir'),
         r.fase || '—',
         cotasStr,
         rels.length ? rels.join('; ') : '—'
@@ -3558,7 +3552,6 @@ function edEstrato(r, p) {
     <div class="g g4">${inp('Técnica de excavación', 'tec', { cls: 'span2' })}<div class="fld span2"><span class="lb">Muestras</span><div class="row">${seg('muestras', [['si', 'Sí'], ['no', 'No']], { aria: 'Muestras' })}<input type="text" id="f_muestrasCant" data-f="muestrasCant" value="${esc(r.muestrasCant)}" placeholder="Cantidad" style="width:110px" aria-label="Cantidad de muestras"><input type="text" id="f_muestrasTipo" data-f="muestrasTipo" value="${esc(r.muestrasTipo)}" placeholder="Tipo" style="flex:1;min-width:110px" aria-label="Tipo de muestras"></div></div></div>
     <div class="fld"><span class="lb">Cribado</span><div class="row">${seg('cribado', [['si', 'Sí'], ['no', 'No']], { aria: 'Cribado' })}<input type="text" id="f_cribadoCant" data-f="cribadoCant" value="${esc(r.cribadoCant)}" placeholder="Cantidad" style="width:130px" aria-label="Cantidad cribada">${seg('cribadoTec', [['seco', 'Seco'], ['agua', 'Agua']], { aria: 'Técnica de cribado' })}</div></div>
     <div><div class="subt">Volumen de material recuperado</div>${seg('volumen', VOL.map(([v, l]) => [v, v + ' · ' + l]), { num: 1, cls: 'wrap', aria: 'Volumen de material' })}<div class="faint" id="voldesc" style="font-size:13px;margin-top:6px">${volDesc(r)}</div></div></div></section>
-  <section class="panel sec" id="s-finds">${secHead('', 'Inventario de materiales de esta UE', `<button type="button" class="btn s p" data-act="adduefind" data-ue="${r.ue}">${ic('plus', 14)}Añadir bolsa/pieza</button>`)}<div class="bd">${findsBlockUE(r, p)}</div></section>
   <section class="panel sec" id="s-mat">${secHead('', 'Materiales recuperados en el estrato', `<span class="note" id="matcount">${matCount(r)}</span>`)}<div class="bd"><div class="mats">${MATERIALES.map(g => `<div class="mgrp"><h4>${g.g}</h4>${g.nota ? `<div class="note" style="margin:-2px 0 5px">${g.nota}</div>` : ''}${g.n.map(([n, l]) => `<label class="mi" for="f_mats_${n}"><input type="checkbox" id="f_mats_${n}" data-f="mats.${n}" ${r.mats[n] ? 'checked' : ''}><span class="nn">${n}</span><span>${esc(l)}</span></label>`).join('')}</div>`).join('')}
     <div class="mgrp"><h4>Otras cerámicas</h4>${r.matsOtras.map((m, i) => `<div class="row" style="gap:6px;margin-bottom:5px;flex-wrap:nowrap"><input type="text" id="f_mo_${i}" data-f="matsOtras.${i}" value="${esc(m)}" aria-label="Otra cerámica ${i + 1}" style="min-height:32px;padding:4px 8px"><button type="button" class="btn s ic g" data-act="matotdel" data-i="${i}" aria-label="Quitar">${ic('x', 14)}</button></div>`).join('')}<button type="button" class="btn s" data-act="matotadd">${ic('plus', 14)}Añadir</button></div></div></div></section>
   <section class="panel sec" id="s-com">${secHead('', 'Comentario')}<div class="bd">${inp('', 'comentario', { area: 1, rows: 3, auto: 1 })}</div></section>`;
@@ -3684,6 +3677,7 @@ function hsideHTML(m) {
   if (h.color === 'tipo') leg = sw(pal.estrato, 'Estrato') + sw(pal.estructura, 'Estructura') + sw(pal.esqueleto, 'Esqueleto') + sw(pal.grey, 'Sin ficha');
   else if (h.color === 'interp') leg = INTERP.map(([k, l], i) => sw(CAT[[2, 0, 1, 6][i]], l)).join('') + sw(pal.grey, 'Sin indicar');
   else if (h.color === 'hecho') leg = [...new Set(m.nodes.map(n => n.rec && n.rec.hecho).filter(Boolean))].map(x => sw(CAT[hashIdx(x)], x)).join('') + sw(pal.grey, 'Sin hecho');
+  else if (h.color === 'fase') leg = fases(p).map((x, i) => sw(CAT[i % CAT.length], x)).join('') + sw(pal.grey, 'Sin fase');
   else leg = periodos(p).map((x, i) => sw(CAT[i % CAT.length], x)).join('') + sw(pal.grey, 'Sin datar');
   const nl = m.edges.length + m.eqs.length;
   s += `<section class="panel"><header><h3>Leyenda</h3></header><div class="bd"><div class="legend" style="flex-direction:column;gap:6px">${leg}</div><hr class="hr" style="margin:12px 0"><div class="legend" style="gap:8px 14px"><span><svg width="26" height="8" aria-hidden="true"><line x1="0" x2="26" y1="1.5" y2="1.5" stroke="${pal.line}" stroke-width="1.5"/><line x1="0" x2="26" y1="6.5" y2="6.5" stroke="${pal.line}" stroke-width="1.5"/></svg> Igual a</span><span><svg width="26" height="8" aria-hidden="true"><line x1="0" x2="26" y1="4" y2="4" stroke="${pal.line}" stroke-width="1.6" stroke-dasharray="4 3"/></svg> Equivale</span><span><svg width="26" height="8" aria-hidden="true"><line x1="0" x2="26" y1="4" y2="4" stroke="${pal.err}" stroke-width="2" stroke-dasharray="6 4"/></svg> Contradicción</span></div></div></section>`;
@@ -4541,7 +4535,7 @@ async function openSketch(path = 'croquis') {
       $('#sk-redo', root).onclick = () => { if (st.redo.length) { st.strokes.push(st.redo.pop()); paint(); upd(); } };
       $('#sk-grid', root).onclick = e => { st.grid = !st.grid; e.currentTarget.setAttribute('aria-pressed', st.grid); paint(); };
       $('#sk-clear', root).onclick = async () => { if (!st.strokes.length) return; st.redo = st.strokes.slice().reverse(); st.strokes = []; paint(); upd(); };
-      $('#sk-bg', root).onclick = async () => { const f = (await pickFiles('image/*'))[0]; if (!f) return; try { const d = await fileToDataURL(f, 1800, .85); st.bg = await putImage(d); loadBg(); $('#sk-bgx', root).hidden = false; } catch (e) { toast('No se pudo leer la imagen.', 'err'); } };
+      $('#sk-bg', root).onclick = async () => { const f = (await pickFiles('image/*'))[0]; if (!f) return; try { const d = await processImageFile(f, 1800, .85); st.bg = await putImage(d); loadBg(); $('#sk-bgx', root).hidden = false; } catch (e) { toast('No se pudo leer la imagen.', 'err'); } };
       $('#sk-bgx', root).onclick = e => { st.bg = null; st.bgImg = null; e.currentTarget.hidden = true; paint(); };
     }
   });
