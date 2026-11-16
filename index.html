@@ -194,6 +194,8 @@ input[type=number]{font-family:var(--f-mono)}
 .pickwrap{display:flex;gap:6px;align-items:stretch}.pickwrap input{flex:1;min-width:0}.pickwrap .btn{flex:0 0 auto;min-width:40px}
 .pick-list{max-height:min(60vh,520px);overflow:auto;border:1px solid var(--line);border-radius:8px}
 .pick-list .it{min-height:44px;font:inherit;color:inherit}.pick-list .it:first-child{border-top:0}.pick-list .it.on{font-weight:600;background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.help-steps{margin:0 0 10px;padding-left:22px;line-height:1.55}.help-steps>li{margin:0 0 7px}.help-steps ul{margin:4px 0 0;padding-left:18px}
+.help-note{font-size:13.5px;line-height:1.5;padding:9px 12px;margin:8px 0 0;border-left:3px solid var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent);border-radius:0 6px 6px 0}
 .list .it{display:flex;gap:10px;align-items:center;padding:9px 16px;border-top:1px solid var(--line);cursor:pointer;text-align:left;background:none;border-left:0;border-right:0;border-bottom:0;width:100%}
 .list .it:first-child{border-top:0}
 .list .it:hover{background:var(--surface-2)}
@@ -1809,6 +1811,196 @@ async function importZipSet(files) {
   await importProject(parts[0].man.project, images);
   cur = null;
 }
+
+/* ---------- Lector ZIP ligero ----------
+   Lee solo el directorio central de un .zip (al final del archivo) y devuelve cada entrada como
+   un trozo del propio archivo (Blob.slice), sin cargarlo entero en memoria. Las copias de la app
+   guardan sin comprimir (STORE); si una entrada viniera comprimida se descomprime con
+   DecompressionStream o, si el navegador no lo admite, se devuelve null para usar JSZip. */
+async function zipIndex(file) {
+  const tailLen = Math.min(file.size, 65557);
+  const tail = new Uint8Array(await file.slice(file.size - tailLen).arrayBuffer());
+  let e = -1;
+  for (let i = tail.length - 22; i >= 0; i--) if (tail[i] === 0x50 && tail[i + 1] === 0x4b && tail[i + 2] === 0x05 && tail[i + 3] === 0x06) { e = i; break; }
+  if (e < 0) throw new Error('no es un ZIP válido');
+  const ev = new DataView(tail.buffer, tail.byteOffset + e);
+  const count = ev.getUint16(10, true), cdSize = ev.getUint32(12, true), cdOff = ev.getUint32(16, true);
+  const cd = new Uint8Array(await file.slice(cdOff, cdOff + cdSize).arrayBuffer()); const cv = new DataView(cd.buffer);
+  const dec = new TextDecoder(); const entries = new Map(); let p = 0;
+  for (let k = 0; k < count; k++) {
+    if (cv.getUint32(p, true) !== 0x02014b50) throw new Error('el índice del ZIP está dañado');
+    const nlen = cv.getUint16(p + 28, true), xlen = cv.getUint16(p + 30, true), clen = cv.getUint16(p + 32, true);
+    entries.set(dec.decode(cd.subarray(p + 46, p + 46 + nlen)), { method: cv.getUint16(p + 10, true), csize: cv.getUint32(p + 20, true), loff: cv.getUint32(p + 42, true) });
+    p += 46 + nlen + xlen + clen;
+  }
+  return entries;
+}
+async function zipEntryBlob(file, en, type = '') {
+  const lh = new DataView(await file.slice(en.loff, en.loff + 30).arrayBuffer());
+  if (lh.getUint32(0, true) !== 0x04034b50) throw new Error('entrada del ZIP dañada');
+  const start = en.loff + 30 + lh.getUint16(26, true) + lh.getUint16(28, true);
+  if (en.method === 0) return file.slice(start, start + en.csize, type);
+  if (en.method === 8 && typeof DecompressionStream !== 'undefined') {
+    const out = await new Response(file.slice(start, start + en.csize).stream().pipeThrough(new DecompressionStream('deflate-raw'))).blob();
+    return new Blob([out], { type });
+  }
+  return null;
+}
+
+/* ---------- Restaurar desde varias copias ----------
+   Para recuperar un proyecto a partir de todas sus copias (completas, incrementales, partes y
+   .json antiguos, en cualquier orden): las fichas se toman de la copia MÁS RECIENTE (así no
+   reaparecen fichas borradas) y cada foto que usan esas fichas se busca en todas las copias,
+   tomándola de la más reciente que la contenga. Se lee un archivo cada vez. */
+async function restoreFromMany(files) {
+  const prog = progressToast('Leyendo copias…');
+  const sources = [];           // { file, kind, exportedAt, projectId, projectName, imgs: Map(id → lector) }
+  const latest = new Map();     // projectId → { exportedAt, project }
+  const bad = [];
+  try {
+    let k = 0;
+    for (const f of files) {
+      k++; prog.set(`Leyendo copias… ${k} de ${files.length}`);
+      try {
+        let man, imgs = new Map();
+        if (/\.zip$/i.test(f.name) || /zip/.test(f.type)) {
+          let entries = null;
+          try { entries = await zipIndex(f); } catch (e) { entries = null; }
+          if (entries && entries.get('registro.json')) {
+            const mb = await zipEntryBlob(f, entries.get('registro.json'));
+            if (mb) man = JSON.parse(await mb.text());
+          }
+          if (!man) { const z = await JSZip.loadAsync(f); const mf = z.file('registro.json'); man = mf && JSON.parse(await mf.async('string')); entries = null; }
+          if (!man || man.app !== 'registro-excavacion' || !man.project) throw new Error('no es una copia de la app');
+          for (const [id, path] of Object.entries(man.imagenes || {})) {
+            const type = EXT_MIME[path.split('.').pop().toLowerCase()] || 'application/octet-stream';
+            const en = entries && entries.get(path);
+            imgs.set(id, async () => {
+              if (en) { const b = await zipEntryBlob(f, en, type); if (b) return b; }
+              const z = await JSZip.loadAsync(f); const zf = z.file(path); return zf ? new Blob([await zf.async('uint8array')], { type }) : null;
+            });
+          }
+        } else {
+          const res = await indexLargeJson(f);
+          man = res.meta;
+          if (!man || man.app !== 'registro-excavacion' || !man.project) throw new Error('no es una copia de la app');
+          res.images.forEach(x => imgs.set(x.id, x.get));
+        }
+        const pid = man.project.id, when = String(man.exportedAt || '');
+        sources.push({ file: f, setId: man.setId || f.name, exportedAt: when, projectId: pid, projectName: man.project.name, tipo: man.tipo || (/\.json$/i.test(f.name) ? 'json' : 'completa'), imgs });
+        const cur = latest.get(pid);
+        if (!cur || when > cur.exportedAt) latest.set(pid, { exportedAt: when, project: man.project });
+        man = null;
+      } catch (e) { bad.push(f.name); }
+    }
+  } finally { prog.done(); }
+  if (!sources.length) { toast('Ninguno de los archivos es una copia de «Registro de excavación».', 'err'); return; }
+
+  // Si hay copias de varios proyectos, elegir cuál restaurar.
+  let pid = [...latest.keys()][0];
+  if (latest.size > 1) {
+    const groups = [...latest.entries()].map(([id, v]) => ({ id, name: v.project.name, n: sources.filter(s => s.projectId === id).length, last: v.exportedAt }));
+    pid = await new Promise(res => openModal({
+      title: 'Elegir proyecto',
+      body: `<p style="margin:0 0 10px">Los archivos contienen copias de ${groups.length} proyectos distintos. ¿Cuál quiere restaurar?</p><label class="fld"><span class="lb">Proyecto</span><select id="rs_pid">${groups.map(g => `<option value="${g.id}">${esc(g.name)} · ${g.n} copias · última ${esc(fmtDT(g.last))}</option>`).join('')}</select></label>`,
+      onClose: () => res(null),
+      actions: [{ label: 'Cancelar', fn: () => res(null) }, { label: 'Continuar', cls: 'p', fn: root => res($('#rs_pid', root).value) }]
+    }));
+    if (!pid) return;
+  }
+  const project = latest.get(pid).project;
+  const srcs = sources.filter(s => s.projectId === pid).sort((a, b) => (a.exportedAt < b.exportedAt ? 1 : -1)); // más reciente primero
+
+  // Fotos que usan las fichas definitivas y de qué copia sale cada una.
+  const needed = [...new Set(JSON.stringify(project).match(/im_[a-z0-9]+/g) || [])];
+  const images = [], missing = [];
+  for (const id of needed) {
+    const s = srcs.find(x => x.imgs.has(id));
+    if (s) images.push({ id, src: s, get: s.imgs.get(id) }); else missing.push(id);
+  }
+  images.sort((a, b) => srcs.indexOf(a.src) - srcs.indexOf(b.src)); // agrupar por archivo
+  const missRecs = missing.length ? project.records.filter(r => missing.some(id => JSON.stringify(r).includes(id))).map(r => r.type === 'muraria' ? 'Cata ' + fu(r.num, project) : 'UE ' + fu(r.ue, project)) : [];
+  const dates = srcs.map(s => s.exportedAt).filter(Boolean).sort();
+  // Una copia en varias partes cuenta como una sola copia.
+  const copias = new Map(); srcs.forEach(s => copias.set(s.setId, s.tipo));
+  const cnt = t => [...copias.values()].filter(x => x === t).length;
+  const pl = (k, a, b) => k + ' ' + (k === 1 ? a : b);
+  const n = { comp: cnt('completa'), inc: cnt('incremental'), json: cnt('json') };
+
+  const ok = await ask({
+    title: 'Restaurar «' + project.name + '»', ok: 'Restaurar',
+    msg: `Se han leído <b>${pl(srcs.length, 'archivo', 'archivos')}</b> con <b>${pl(copias.size, 'copia', 'copias')}</b>${dates.length ? ` (del ${esc(fmtDT(dates[0]))} al ${esc(fmtDT(dates[dates.length - 1]))})` : ''}: ${pl(n.comp, 'completa', 'completas')}, ${pl(n.inc, 'incremental', 'incrementales')}${n.json ? ', ' + pl(n.json, '.json antigua', '.json antiguas') : ''}${bad.length ? `, y ${bad.length} archivos que no se han podido leer (${esc(bad.slice(0, 3).join(', '))}${bad.length > 3 ? '…' : ''})` : ''}.
+      <br><br>• <b>Fichas:</b> ${project.records.length}, tal como estaban en la copia más reciente (${esc(fmtDT(latest.get(pid).exportedAt))}). Las fichas borradas durante la excavación no reaparecen.
+      <br>• <b>Fotos:</b> ${images.length} de ${needed.length} encontradas en las copias.${missing.length ? `<br>• <b>Faltan ${missing.length} fotos</b> que no están en ninguna copia seleccionada (en ${esc(missRecs.slice(0, 8).join(', '))}${missRecs.length > 8 ? '…' : ''}).` : ''}
+      <br><br>Si el proyecto ya existe en este dispositivo podrá elegir entre sustituirlo o crear una copia aparte.`
+  });
+  if (!ok) return;
+  let mode;
+  if (S.projects.some(x => x.id === project.id)) {
+    mode = await new Promise(res => openModal({
+      title: 'El proyecto ya está en este dispositivo',
+      body: `<p style="margin:0">Este dispositivo ya tiene «${esc(project.name)}». Al restaurar desde las copias lo normal es <b>sustituirlo</b>: quedará exactamente como en la copia más reciente. Una fusión no sirve aquí, porque mantendría las fichas que se borraron durante la excavación.</p>`,
+      onClose: () => res(null),
+      actions: [{ label: 'Cancelar', fn: () => res(null) }, { label: 'Crear como copia aparte', fn: () => res('new') }, { label: 'Sustituir el proyecto (recomendado)', cls: 'p', fn: () => res('replace') }]
+    }));
+    if (!mode) return;
+  }
+  await importProject(project, images.map(x => ({ id: x.id, get: x.get })), mode);
+}
+/* ---------- Ayuda paso a paso de las copias de seguridad ---------- */
+const BACKUP_HELP = {
+  exportar: { t: 'Exportar', h: `
+    <p style="margin:0 0 8px"><b>Cuándo:</b> al terminar cada jornada de campo.</p>
+    <ol class="help-steps">
+      <li>Pulse <b>«Copia de seguridad»</b> en el Panel, o en esta sección:
+        <ul><li>la primera vez, <b>«Exportar copia completa (.zip)»</b>;</li>
+        <li>los días siguientes, <b>«Copia incremental: solo lo nuevo (.zip)»</b> (todas las fichas y solo las fotos nuevas). El botón del Panel elige solo la adecuada.</li></ul></li>
+      <li>Si la copia es grande, se abre una ventana con varias <b>partes</b>: pulse <b>«Descargar»</b> en cada una hasta que todas muestren <b>✓ Descargada</b>.</li>
+      <li>En el iPad, Safari pregunta si quiere descargar cada archivo: acepte. Quedan en la app <b>Archivos → Descargas</b>.</li>
+      <li>Mueva los archivos a una carpeta del proyecto (por ejemplo, <i>Copias Santa Clara</i>) y llévela a un lugar seguro: ordenador, pendrive o nube.</li>
+    </ol>
+    <div class="help-note"><b>Importante:</b> no borre ninguna copia incremental, porque cada una lleva fotos que no están en las demás. Haga además una copia completa de vez en cuando (por ejemplo, una por semana).</div>
+    <div class="help-note"><b>¿El iPad se queda sin espacio?</b> Cuando las copias estén a salvo, use <b>«Archivar fotos ya respaldadas»</b> (en Mantenimiento): las fotos que ya están en una copia se quedan como miniatura en el dispositivo.</div>` },
+  importar: { t: 'Importar', h: `
+    <p style="margin:0 0 8px"><b>Para qué:</b> pasar el proyecto a otro dispositivo, o que el director reciba el trabajo diario de cada tableta.</p>
+    <ol class="help-steps">
+      <li>Copie el archivo de la copia (o todas sus partes) al dispositivo de destino.</li>
+      <li>Abra la app en ese dispositivo: <b>Proyecto y datos → «Importar copia»</b>.</li>
+      <li>Seleccione el archivo. Si la copia tiene varias partes (<i>…-parte1de3.zip</i>, <i>…-parte2de3.zip</i>…), <b>selecciónelas todas a la vez</b>.</li>
+      <li>Si el proyecto no existe en ese dispositivo, se crea y se abre. Si ya existe, elija:
+        <ul><li><b>Fusión Inteligente</b>: añade lo nuevo de la otra tableta (fichas nuevas, fichas más recientes y sus fotos). Es lo habitual para juntar el trabajo del equipo;</li>
+        <li><b>Sustituir todo</b>: el proyecto queda igual que en la copia;</li>
+        <li><b>Crear como copia aparte</b>: conserva los dos.</li></ul></li>
+      <li>Espere a que termine <i>«Importando imágenes… N de N»</i> sin cerrar la app.</li>
+    </ol>
+    <div class="help-note">También se pueden importar las copias <b>.json</b> de versiones anteriores, aunque sean muy grandes.</div>` },
+  restaurar: { t: 'Recuperar todo', h: `
+    <p style="margin:0 0 8px"><b>Para qué:</b> al acabar la excavación (o si se pierde un iPad), reconstruir el proyecto completo con todas sus fotos a partir de <b>todas</b> las copias guardadas.</p>
+    <ol class="help-steps">
+      <li>Reúna todas las copias del proyecto en una carpeta del ordenador. Da igual que haya completas, incrementales, partes o .json antiguos.</li>
+      <li>Pulse <b>«Restaurar desde varias copias…»</b> y seleccione <b>todos los archivos de la carpeta a la vez</b> (en Windows, <b>Ctrl + A</b>).</li>
+      <li>Revise el resumen: número de copias, fichas que se van a restaurar y fotos encontradas (si falta alguna, indica en qué fichas).</li>
+      <li>Pulse <b>«Restaurar»</b>. Si el proyecto ya está en ese ordenador, elija <b>«Sustituir el proyecto (recomendado)»</b>.</li>
+    </ol>
+    <div class="help-note">Las fichas se toman de la copia más reciente (las borradas no reaparecen) y las fotos de todas las copias, siempre en su resolución original.</div>
+    <div class="help-note"><b>¿Solo necesita la Memoria Word?</b> Basta con importar la última copia: todas las copias llevan todas las fichas y la Memoria no incluye fotos.</div>` }
+};
+function openBackupHelp(tab = 'exportar') {
+  openModal({
+    title: 'Cómo hacer y recuperar las copias', cls: 'wide',
+    body: `<div class="seg" role="tablist" aria-label="Apartados de la ayuda" style="margin-bottom:12px">${Object.entries(BACKUP_HELP).map(([k, v]) => `<button type="button" role="tab" data-help="${k}" class="${k === tab ? 'on' : ''}" aria-selected="${k === tab}">${v.t}</button>`).join('')}</div>
+      ${Object.entries(BACKUP_HELP).map(([k, v]) => `<div class="help-pane" data-pane="${k}" ${k === tab ? '' : 'hidden'}>${v.h}</div>`).join('')}
+      <p class="faint" style="font-size:12.5px;margin:12px 0 0">Más detalles e ilustraciones en la <a href="guia.html#sec-12" target="_blank" rel="noopener">guía de uso, sección 12</a>.</p>`,
+    actions: [{ label: 'Cerrar', cls: 'p', fn: () => { } }],
+    onOpen: root => root.querySelectorAll('[data-help]').forEach(b => {
+      b.onclick = () => {
+        root.querySelectorAll('[data-help]').forEach(x => { const on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-selected', on); });
+        root.querySelectorAll('[data-pane]').forEach(p => { p.hidden = p.dataset.pane !== b.dataset.help; });
+      };
+    })
+  });
+}
+
 function csvEsc(v) { const s = String(v ?? ''); return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
 function toCSV(p, recs) {
   const head = ['Tipo', 'UE / Nº cata', 'Acrónimo', 'Hecho', 'Fecha', 'Autor', 'Localización', 'Datación provisional', 'Basada en', 'Fiabilidad', 'Natural/Antrópico', 'Interpretación', 'Conservación', 'Retirar/Conservar', 'Estado del registro', 'Descripción', 'Interpretación (texto)', ...REL.map(r => r.l), 'Cota sup. máx.', 'Cota inf. mín.', 'Nº fotos', 'Completitud %', 'Ritual', 'Posición', 'Orientación (°)', 'Sexo', 'Grupo de edad', 'Representación esquelética %', 'Sepultura'];
@@ -1835,7 +2027,9 @@ async function storeImportedImages(images, projectId, mapId = id => id) {
   } finally { prog.done(); }
   if (fail) toast(`${fail} imágenes no se encontraron en la copia.`, 'err');
 }
-async function importProject(incoming, images) {
+// forceMode ('replace' | 'new'): si el proyecto ya existe, se usa sin preguntar (la restauración
+// desde varias copias hace su propia pregunta).
+async function importProject(incoming, images, forceMode) {
   if (!incoming || !Array.isArray(incoming.records)) { toast('Este archivo no es una copia de «Registro de excavación».', 'err'); return; }
   images = images || [];
   if (!incoming.finds) incoming.finds = []; if (!incoming.samples) incoming.samples = [];
@@ -1844,7 +2038,8 @@ async function importProject(incoming, images) {
   let mode = 'new';
   let renumberConflicts = true;
 
-  if (exists) {
+  if (exists && forceMode) mode = forceMode;
+  else if (exists) {
     // Análisis de colisiones para Fusión Inteligente
     const byId = new Map(exists.records.map(r => [r.id, r]));
     const byUE = new Map(exists.records.filter(r => r.ue != null).map(r => [r.ue, r]));
@@ -3194,9 +3389,9 @@ function viewSettings() {
     <div class="fld"><span class="lb">Reutilizar listas</span><button type="button" class="btn" data-act="copylists" ${S.projects.length > 1 ? '' : 'disabled'}>${ic('copy', 15)}Copiar de otro proyecto…</button><span class="hint">Para un yacimiento ya excavado: trae las fases y dataciones de otro proyecto. Se pueden cambiar en cualquier momento.</span></div>
     ${ueDigSelect('p_ueDigitos', p.meta.ueDigitos, 'data-p="ueDigitos"')}${pinp('Primer número de UE', 'ueInicio', { hint: 'Las fichas nuevas se numeran a partir de aquí (si se deja vacío, desde 1).' })}<span></span>
   </div></section>
-  <div class="split"><section class="panel"><header><h2>Copias de seguridad</h2></header><div class="bd g" style="gap:12px">
+  <div class="split"><section class="panel"><header><h2>Copias de seguridad</h2><div class="sp"><button class="btn s" data-act="backuphelp">${ic('info', 15)}Cómo hacer y recuperar las copias</button></div></header><div class="bd g" style="gap:12px">
     <p class="muted" style="margin:0">La <b>copia completa</b> (.zip) contiene todas las fichas, relaciones, croquis y fotografías. La <b>copia incremental</b> lleva también todas las fichas, pero solo las fotos que aún no han salido en ninguna copia: es la adecuada para el final de cada jornada en proyectos grandes. Si una copia es grande se divide en partes de unos 100 MB: descárguelas todas y, para restaurar, selecciónelas a la vez en «Importar copia». También se pueden importar copias .json antiguas.</p>
-    <div class="row"><button class="btn p" data-act="exportjson">${ic('download')}Exportar copia completa (.zip)</button><button class="btn" data-act="exportjson" data-inc="1" ${bst.sinCopia || bst.respaldadas || bst.archivadas ? '' : 'disabled'}>${ic('download')}Copia incremental: solo lo nuevo (.zip)</button><button class="btn" data-act="exportjson" data-lite="1">Solo datos, sin fotos (.json)</button><button class="btn" data-act="importjson">${ic('upload')}Importar copia</button></div>
+    <div class="row"><button class="btn p" data-act="exportjson">${ic('download')}Exportar copia completa (.zip)</button><button class="btn" data-act="exportjson" data-inc="1" ${bst.sinCopia || bst.respaldadas || bst.archivadas ? '' : 'disabled'}>${ic('download')}Copia incremental: solo lo nuevo (.zip)</button><button class="btn" data-act="exportjson" data-lite="1">Solo datos, sin fotos (.json)</button><button class="btn" data-act="importjson">${ic('upload')}Importar copia</button><button class="btn" data-act="restoremany">${ic('upload')}Restaurar desde varias copias…</button></div>
     <div class="faint" style="font-size:13px">Fotos sin copia todavía: <b>${bst.sinCopia}</b>${bst.sinCopia ? ' (' + fmtMB(bst.sinCopiaBytes) + ')' : ''} · ya incluidas en alguna copia: ${bst.respaldadas}${bst.archivadas ? ' · archivadas (solo miniatura): ' + bst.archivadas : ''}${p.lastFullBackup ? ' · última copia completa: ' + fmtDT(p.lastFullBackup) : ''}</div>
     <div class="row"><button class="btn p" data-act="exportmemoriadocx">${ic('file')}Descargar Memoria Técnica (.docx)</button><button class="btn" data-act="printbook">${ic('book')}Libro de registro oficial (PDF)</button></div>
     <div class="row"><button class="btn" data-act="exportcsv">${ic('table')}Exportar CSV (UEs)</button><button class="btn" data-act="exportgeojson">${ic('pin')}Exportar capa GeoJSON (QGIS)</button></div>
@@ -4597,6 +4792,11 @@ const ACT = {
   async importjson() {
     const fs = await pickFiles('.zip,.json,application/zip,application/json', true); if (!fs.length) return;
     try { await importFiles(fs); } catch (e) { console.error(e); toast('No se pudo importar la copia: ' + (e.message || e), 'err'); }
+  },
+  backuphelp() { openBackupHelp(); },
+  async restoremany() {
+    const fs = await pickFiles('.zip,.json,application/zip,application/json', true); if (!fs.length) return;
+    try { await restoreFromMany(fs); } catch (e) { console.error(e); toast('No se pudo restaurar: ' + (e.message || e), 'err'); }
   },
   clearfilters() { Object.assign(S.f, { tipo: '', estado: '', hecho: '', fase: '', dat: '' }); renderView(); },
   pickopt(el) { openOptPicker(el.dataset.path, el.dataset.kind); },

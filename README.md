@@ -98,6 +98,7 @@ La aplicación cuenta con una arquitectura basada en **Service Worker (`sw.js`)*
 
 * **Copia de Seguridad Completa (.zip):** Exporta el proyecto completo (fichas, cotas, croquis, materiales, muestras y fotos). Cada archivo ZIP contiene `registro.json` con los datos y una carpeta `fotos/`. Los proyectos grandes se dividen en partes de unos 100 MB que se importan juntas (o una a una, mediante la Fusión Inteligente).
 * **Copia incremental (.zip):** Todas las fichas y solo las fotos que aún no han salido en ninguna copia. Para restaurar: la última copia completa y después las incrementales, por orden, con la Fusión Inteligente.
+* **Restaurar desde varias copias:** Se seleccionan todas las copias de un proyecto a la vez (completas, incrementales, partes y .json antiguos, en cualquier orden). Las fichas se toman de la copia más reciente, de modo que las borradas no reaparecen, y las fotos de todas las copias. Los ZIP se leen por su índice, sin cargarlos enteros en memoria.
 * **Copia solo de datos (.json):** Las fichas sin fotos, en un archivo de pocos KB.
 * **Importación de copias antiguas (.json):** Se admiten las copias JSON de versiones anteriores, aunque ocupen cientos de MB: se leen por trozos sin cargarlas enteras en memoria.
 * **Memoria Técnica Word (.docx):** Plantilla editorial con cuadros tipográficos formateados lista para entregar a la administración de Patrimonio Cultural.

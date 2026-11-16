@@ -525,6 +525,7 @@
             <br>• <strong>Importación de copias .json antiguas</strong>, aunque ocupen cientos de MB.
             <br>• <strong>Fotos más ligeras en el iPad</strong>: se guardan en JPEG en lugar de PNG (unas 10 veces menos espacio) y las ya guardadas se optimizan solas.
             <br>• <strong>Desplegables de Fase / Complejo y Datación provisional</strong> configurables en cada proyecto, copiables de otro yacimiento. <a href="#sec-2">Ver sección 2</a>.
+            <br>• <strong>Restaurar desde varias copias</strong>: al acabar la excavación, el director selecciona la carpeta entera de copias (completas, incrementales, partes y .json antiguos) y obtiene el proyecto final con todas sus fotos en un solo paso.
             <br>• <strong>Filtros por Fase y por Datación</strong> en la lista de fichas, que también limitan el Libro de registro y el CSV.
             <br>• <strong>Numeración de las fichas desde 0001</strong> y primer número de UE configurable.
             <br>• <strong>Preparada para excavaciones grandes</strong> (probada con 700 fichas): copia incremental diaria, archivo de fotos ya respaldadas y guardado mucho más rápido de proyectos con croquis. <a href="#sec-12">Ver sección 12</a>.
@@ -1142,6 +1143,10 @@ CONTEMPORÁNEO</pre>
         <p>
           Todo lo que registras se guarda <strong>dentro del navegador del dispositivo</strong> (iPad, tableta u ordenador). Las copias de seguridad son la única forma de tener los datos a salvo fuera de él y de pasarlos a otro equipo. Todas se hacen desde <span class="ui-pill">Proyecto y datos</span> &rarr; <em>Copias de seguridad</em>, o con el botón <span class="ui-pill primary">Copia de seguridad</span> del Panel.
         </p>
+        <div class="callout tip">
+          <div class="callout-title">Ayuda dentro de la app</div>
+          <p>En el apartado <em>Copias de seguridad</em> de <span class="ui-pill">Proyecto y datos</span>, el botón <span class="ui-pill">Cómo hacer y recuperar las copias</span> abre una explicación paso a paso con tres pestañas: <strong>Exportar</strong>, <strong>Importar</strong> y <strong>Recuperar todo</strong>.</p>
+        </div>
 
         <h3>Tipos de copia</h3>
         <div class="table-box">
@@ -1164,6 +1169,11 @@ CONTEMPORÁNEO</pre>
                 <td><span class="ui-pill">Solo datos, sin fotos (.json)</span></td>
                 <td><code>convento-2026-11-12-sin-imagenes.json</code></td>
                 <td>Solo los datos (unos pocos KB). Útil para enviar por correo el estado de las fichas, pero <strong>no sirve como copia de seguridad completa</strong> porque no lleva fotos ni croquis.</td>
+              </tr>
+              <tr>
+                <td><span class="ui-pill">Restaurar desde varias copias…</span></td>
+                <td>Todos los <code>.zip</code> y <code>.json</code> de un proyecto</td>
+                <td>Reconstruye el proyecto a partir de todas sus copias a la vez: fichas de la copia más reciente y fotos de todas. Pensado para el final de la excavación o para recuperar un iPad perdido.</td>
               </tr>
               <tr>
                 <td><span class="ui-pill">Importar copia</span></td>
@@ -1291,7 +1301,35 @@ CONTEMPORÁNEO</pre>
             <li>Cada tarde, una <strong>copia incremental</strong> (el botón <span class="ui-pill primary">Copia de seguridad</span> del Panel ya la hace sola cuando existe una copia anterior).</li>
             <li>Guarda todas las copias en la misma carpeta, con su fecha. <strong>No borres las incrementales</strong>: cada una contiene fotos que no están en ninguna otra.</li>
           </ol>
-          <p><strong>Para restaurar</strong> un proyecto en un dispositivo nuevo: importa la última copia completa y después cada incremental, de la más antigua a la más reciente, eligiendo <span class="ui-pill primary">Fusión Inteligente</span>. Si importas una incremental en un dispositivo que no tiene el proyecto, la app te avisa de que faltan las fotos anteriores.</p>
+          <p><strong>Para restaurar</strong> un proyecto en un dispositivo nuevo, usa <span class="ui-pill">Restaurar desde varias copias…</span> (siguiente apartado). Si importas una incremental suelta con <span class="ui-pill">Importar copia</span> en un dispositivo que no tiene el proyecto, la app te avisa de que faltan las fotos anteriores.</p>
+        </div>
+
+        <h3>Fin de la excavación: restaurar desde todas las copias</h3>
+        <p>
+          Al terminar, el arqueólogo tendrá una carpeta con muchas copias (por ejemplo, 200 archivos en un año). Para que el director vea todas las fichas con sus fotos en su ordenador y pueda imprimir las fichas y la Memoria:
+        </p>
+        <div class="step-card">
+          <ol>
+            <li>Copiar la carpeta con todas las copias al ordenador del director.</li>
+            <li>En la app, <span class="ui-pill">Proyecto y datos</span> &rarr; <span class="ui-pill">Restaurar desde varias copias…</span>.</li>
+            <li>Seleccionar <strong>todos los archivos de la carpeta a la vez</strong> (en Windows, <kbd>Ctrl</kbd>+<kbd>A</kbd> en la ventana de selección). Da igual el orden y se pueden mezclar copias completas, incrementales, partes y copias <code>.json</code> antiguas.</li>
+            <li>La app lee el índice de cada archivo, sin cargarlo entero (unos segundos), y muestra un resumen: número de copias y fechas, fichas que se van a restaurar, fotos encontradas y, si faltan, cuántas y en qué fichas.</li>
+            <li>Pulsar <span class="ui-pill primary">Restaurar</span>. Si el proyecto ya existe en ese ordenador, elegir <span class="ui-pill primary">Sustituir el proyecto (recomendado)</span>.</li>
+          </ol>
+        </div>
+        <div class="table-box">
+          <table class="guide-table">
+            <thead><tr><th style="width:30%">Qué se recupera</th><th>De dónde sale</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Fichas</strong></td><td>De la <strong>copia más reciente</strong>, tal como estaban ese día. Las fichas borradas durante la excavación <strong>no reaparecen</strong>, algo que sí pasaría importando las copias una a una con la Fusión Inteligente.</td></tr>
+              <tr><td><strong>Fotos</strong></td><td>De todas las copias: cada foto que usan las fichas finales se toma de la copia más reciente que la contenga. Siempre son los originales, aunque en el iPad estuvieran archivadas como miniaturas.</td></tr>
+              <tr><td><strong>Fotos que faltan</strong></td><td>Si alguna foto no está en ninguna de las copias seleccionadas (porque falta un archivo de la carpeta), el resumen indica cuántas y en qué fichas antes de restaurar.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout tip">
+          <div class="callout-title">Solo para la Memoria Word</div>
+          <p>La Memoria Word no incluye fotografías. Si el director solo necesita la Memoria, le basta con importar <strong>la última copia</strong> (o sus partes): cualquier copia, completa o incremental, lleva todas las fichas. Las fotos solo hacen falta para imprimir las fichas con su anexo fotográfico.</p>
         </div>
 
         <h3>Archivar fotos ya respaldadas (liberar espacio en el iPad)</h3>
@@ -1455,6 +1493,13 @@ CONTEMPORÁNEO</pre>
           <div class="step-title">¿Cómo evito que el navegador limpie la memoria si queda poco espacio?</div>
           <p>
             La aplicación solicita automáticamente al sistema el permiso de almacenamiento persistente (<code>navigator.storage.persist()</code>). Esto le indica al sistema operativo Android, iOS o Windows que los datos de la excavación son <em>protegidos</em> y no deben borrarse nunca en limpiezas automáticas de caché.
+          </p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title">Ha acabado la excavación y hay 200 copias. ¿Cómo ve el director todas las fichas?</div>
+          <p>
+            Con <span class="ui-pill">Restaurar desde varias copias…</span>, seleccionando todos los archivos de la carpeta a la vez. La app reconstruye el proyecto con las fichas de la última copia y las fotos de todas (ver <a href="#sec-12">sección 12</a>). No importes las copias una a una: además de ser lento, harían reaparecer las fichas borradas.
           </p>
         </div>
 
