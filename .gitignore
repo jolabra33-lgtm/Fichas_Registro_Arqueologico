@@ -1,18 +1,23 @@
-# Sistema Operativo
+# Copias de seguridad y datos de excavación (no subir al repositorio)
+*.zip
+*.json
+!manifest.json
+
+# Sistema
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# Editores y entornos de desarrollo
+# Editores
 .vscode/
 .idea/
-*.sublime-project
-*.sublime-workspace
 
-# Archivos temporales y respaldos
+# Temporales y respaldos
 *.tmp
 *.temp
 *.bak
 *~
 *.swp
 *.log
+*.sublime-project
+*.sublime-workspace

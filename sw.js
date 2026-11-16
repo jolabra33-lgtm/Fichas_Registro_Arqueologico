@@ -1,13 +1,12 @@
 // Service Worker — Registro de Excavación Arqueológica V2
 // Cache-First strategy for 100% offline field usage
 
-const CACHE_NAME = 'registro-arq-v2-cache-v1';
+const CACHE_NAME = 'registro-arq-v2-cache-v4';
+// Solo archivos que existen: cache.addAll falla entero si falta uno.
 const PRECACHE_ASSETS = [
   './',
   './index.html',
-  './Registro_de_Excavacion_V2.html',
   './guia.html',
-  './Guia_de_Uso_Aplicacion_V2.html',
   './plates.js',
   './qrcode.min.js',
   './jszip.min.js',
@@ -82,7 +81,7 @@ self.addEventListener('fetch', event => {
       }).catch(() => {
         // Fallback offline para navegaciones HTML
         if (request.headers.get('accept') && request.headers.get('accept').includes('text/html')) {
-          return caches.match('./index.html') || caches.match('./Registro_de_Excavacion_V2.html');
+          return caches.match('./index.html');
         }
       });
     })

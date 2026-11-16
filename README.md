@@ -1,6 +1,6 @@
 # 🏛️ Registro de Excavación Arqueológica V2
 
-[![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Live%20Demo-16625E?style=flat&logo=github)](https://jolabra33-lgtm.github.io/registro-excavacion-arqueologica/)
+[![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Live%20Demo-16625E?style=flat&logo=github)](https://jolabra33-lgtm.github.io/Fichas_Registro_Arqueologico/)
 [![PWA Ready](https://img.shields.io/badge/PWA-100%25%20Offline-2A7A49?style=flat&logo=pwa)](https://developer.mozilla.org/es/docs/Web/Progressive_web_apps)
 [![IndexedDB](https://img.shields.io/badge/Storage-IndexedDB%20Local-23659A?style=flat)](https://developer.mozilla.org/es/docs/Web/API/IndexedDB_API)
 [![License: MIT](https://img.shields.io/badge/License-MIT-9A680F.svg)](LICENSE)
@@ -11,8 +11,8 @@ Aplicación web profesional y **Progressive Web App (PWA)** de registro arqueol�
 
 ## 🚀 Acceso Rápido
 
-* **Aplicación Web:** [Abrir Registro de Excavación V2](https://jolabra33-lgtm.github.io/registro-excavacion-arqueologica/) *(o abrir `index.html`)*
-* **Manual de Usuario:** [Guía Práctica Ilustrada paso a paso](https://jolabra33-lgtm.github.io/registro-excavacion-arqueologica/guia.html) *(o abrir `guia.html`)*
+* **Aplicación Web:** [Abrir Registro de Excavación V2](https://jolabra33-lgtm.github.io/Fichas_Registro_Arqueologico/) *(o abrir `index.html`)*
+* **Manual de Usuario:** [Guía Práctica Ilustrada paso a paso](https://jolabra33-lgtm.github.io/Fichas_Registro_Arqueologico/guia.html) *(o abrir `guia.html`)*
 
 ---
 
@@ -41,6 +41,10 @@ Aplicación web profesional y **Progressive Web App (PWA)** de registro arqueol�
 * **Croquis y Fotografías en Campo:** Soporte para adjuntar croquis vectoriales trazados a mano o fotografía directa desde la cámara del dispositivo móvil.
 * **Control de Calidad Automático:** Detección de incoherencias estratigráficas, relaciones circulares (A anterior a B y B anterior a A) y avisos de datación invertida.
 * **Fusión Inteligente de Jornada (Smart Merge):** Permite sincronizar el trabajo de varios arqueólogos con distintas tabletas al final del día sin sobrescribir información.
+* **Copias de seguridad sin límite práctico de fotos:** La copia completa se exporta en ZIP con las fotos como archivos y, si el proyecto es grande, se divide en partes de unos 100 MB. Probado con 500 fotos.
+* **Desplegables configurables por proyecto:** Las opciones de *Fase / Complejo* y *Datación provisional* se definen al crear el proyecto, se pueden copiar de otra campaña del mismo yacimiento y se cambian en cualquier momento.
+* **Numeración de fichas configurable:** UE 1, 001, 0001 (por defecto) o 00001, y primer número de UE ajustable para cada campaña.
+* **Fotos ligeras:** Las fotos se reducen a 2048 px y se guardan en WebP o JPEG (también en iPad); las guardadas en PNG por versiones anteriores se optimizan automáticamente.
 
 ---
 
@@ -90,8 +94,9 @@ La aplicación cuenta con una arquitectura basada en **Service Worker (`sw.js`)*
 
 ## 💾 Exportación y Compatibilidad Documental
 
-* **Copia de Seguridad Integral (.json):** Exporta el proyecto arqueológico completo con todas sus fichas, cotas, croquis y fotos en un único archivo ligero para respaldar o transferir entre equipos.
-* **Paquete de Campo Comprimido (.zip):** Empaqueta mediante `jszip` las fichas en formato estructurado, etiquetas y archivos multimedia.
+* **Copia de Seguridad Completa (.zip):** Exporta el proyecto completo (fichas, cotas, croquis, materiales, muestras y fotos). Cada archivo ZIP contiene `registro.json` con los datos y una carpeta `fotos/`. Los proyectos grandes se dividen en partes de unos 100 MB que se importan juntas (o una a una, mediante la Fusión Inteligente).
+* **Copia solo de datos (.json):** Las fichas sin fotos, en un archivo de pocos KB.
+* **Importación de copias antiguas (.json):** Se admiten las copias JSON de versiones anteriores, aunque ocupen cientos de MB: se leen por trozos sin cargarlas enteras en memoria.
 * **Memoria Técnica Word (.docx):** Plantilla editorial con cuadros tipográficos formateados lista para entregar a la administración de Patrimonio Cultural.
 * **Sistemas de Información Geográfica (GIS):** Exportación de datos espaciales y cotas lista para vincular con capas de **QGIS** y ortofotografías georreferenciadas.
 
@@ -107,26 +112,23 @@ La aplicación cuenta con una arquitectura basada en **Service Worker (`sw.js`)*
 ## 📁 Estructura del Repositorio
 
 ```text
-├── .github/
-│   └── workflows/
-│       └── deploy.yml            # Automatización de despliegue en GitHub Pages
 ├── icons/
 │   ├── icon-192.png              # Icono PWA (192x192 px)
 │   ├── icon-512.png              # Icono PWA (512x512 px maskable)
 │   └── icon.svg                  # Icono vectorial oficial
 ├── .gitignore                    # Reglas de exclusión para Git
 ├── .nojekyll                     # Desactiva el procesador Jekyll en GitHub Pages
-├── guia.html                     # Manual de usuario práctico interactivo (alias corto)
-├── Guia_de_Uso_Aplicacion_V2.html# Manual de usuario con las 14 secciones completas
-├── index.html                    # Entrada principal de la aplicación (SPA para GitHub Pages)
+├── guia.html                     # Manual de usuario ilustrado (15 secciones)
+├── index.html                    # La aplicación (página única)
 ├── jszip.min.js                  # Librería para exportación de archivos ZIP
 ├── LICENSE                       # Licencia MIT
 ├── manifest.json                 # Descriptor PWA (Nombre, tema, iconos, pantalla)
 ├── plates.js                     # Base de datos vectorial de láminas y tipologías
 ├── qrcode.min.js                 # Motor de generación de códigos QR
 ├── README.md                     # Documentación general del repositorio
-├── Registro_de_Excavacion_V2.html# Archivo original de la aplicación
-└── sw.js                         # Service Worker para ejecución y caché 100% offline
+├── sw.js                         # Service Worker para ejecución y caché 100% offline
+├── Registro_de_Excavacion_V2.html# Redirección a index.html (dirección antigua)
+└── Guia_de_Uso_Aplicacion_V2.html# Redirección a guia.html (dirección antigua)
 ```
 
 ---
@@ -138,13 +140,13 @@ Para subir este repositorio a tu cuenta de GitHub y activar GitHub Pages, sigue 
 ### Paso 1: Crear el repositorio en GitHub
 1. Inicia sesión en tu cuenta de [GitHub](https://github.com/).
 2. Haz clic en el botón verde **"New"** (Nuevo repositorio) en la esquina superior izquierda.
-3. Asigna un nombre al repositorio, por ejemplo: `registro-excavacion-arqueologica`.
+3. Asigna un nombre al repositorio, por ejemplo: `Fichas_Registro_Arqueologico`.
 4. Selecciónalo como **Public** (Público).
 5. **No** marques las casillas de *Initialize with README*, *.gitignore* o *License* (ya los tenemos preparados aquí).
 6. Haz clic en **"Create repository"**.
 
 ### Paso 2: Subir los archivos desde tu terminal
-Abre una consola de comandos en la carpeta `Aplicacion para github` y ejecuta:
+Abre una consola de comandos en la carpeta `v2` y ejecuta:
 
 ```bash
 # 1. Inicializar git en la rama main
@@ -157,7 +159,7 @@ git add .
 git commit -m "feat: publicación oficial de Registro de Excavación Arqueológica V2 (PWA)"
 
 # 4. Vincular con tu repositorio de GitHub (sustituye tu usuario y repo si varían)
-git remote add origin https://github.com/jolabra33-lgtm/registro-excavacion-arqueologica.git
+git remote add origin https://github.com/jolabra33-lgtm/Fichas_Registro_Arqueologico.git
 
 # 5. Subir el código
 git push -u origin main
@@ -172,11 +174,15 @@ git push -u origin main
    * **Source:** Selecciona **Deploy from a branch**.
    * **Branch:** Selecciona `main` y en la carpeta deja `/ (root)`.
    * Haz clic en **Save** (Guardar).
-   *(Alternativamente, puedes seleccionar `GitHub Actions`, ya que el repositorio incluye el flujo automático `.github/workflows/deploy.yml`).*
 4. En 1-2 minutos tu aplicación estará publicada y accesible para todo el mundo en:
    ```text
-   https://jolabra33-lgtm.github.io/registro-excavacion-arqueologica/
+   https://jolabra33-lgtm.github.io/Fichas_Registro_Arqueologico/
    ```
+
+### Paso 4: Publicar una versión nueva
+Cada vez que cambies la aplicación, sube a `CACHE_NAME` en `sw.js` el número final (por ejemplo, de `…-cache-v4` a `…-cache-v5`) antes de hacer `git push`. Así los dispositivos que ya tienen la app instalada descargan la versión nueva (puede hacer falta abrirla dos veces).
+
+> ⚠️ **No subas copias de seguridad al repositorio.** Los archivos `.zip` y `.json` exportados contienen datos de yacimientos y fotografías; el `.gitignore` ya los excluye.
 
 ---
 
