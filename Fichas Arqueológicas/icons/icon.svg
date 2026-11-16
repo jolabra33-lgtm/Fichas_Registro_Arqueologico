@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#19736E"/>
+      <stop offset="100%" stop-color="#0E423F"/>
+    </linearGradient>
+    <linearGradient id="bladeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F2F5F4"/>
+      <stop offset="100%" stop-color="#D0DBD8"/>
+    </linearGradient>
+    <linearGradient id="strata1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#DDAA4A"/>
+      <stop offset="100%" stop-color="#B88328"/>
+    </linearGradient>
+    <linearGradient id="strata2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#E78068"/>
+      <stop offset="100%" stop-color="#C25039"/>
+    </linearGradient>
+    <linearGradient id="strata3" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#86AADB"/>
+      <stop offset="100%" stop-color="#557CA8"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Background rounded squircle -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)"/>
+  
+  <!-- Subtle inner border -->
+  <rect x="8" y="8" width="496" height="496" rx="104" fill="none" stroke="#FFFFFF" stroke-opacity="0.12" stroke-width="4"/>
+
+  <!-- Stratigraphic layers (ground profile) -->
+  <g opacity="0.85" transform="translate(48, 220)">
+    <!-- Layer 1: Estrato Ocre -->
+    <path d="M 20 60 Q 120 40 220 55 T 400 48 L 400 100 L 20 100 Z" fill="url(#strata1)" opacity="0.9"/>
+    <!-- Layer 2: Estructura Ladrillo -->
+    <path d="M 20 100 Q 140 85 240 102 T 400 95 L 400 155 L 20 155 Z" fill="url(#strata2)" opacity="0.95"/>
+    <!-- Layer 3: Nivel Geológico Pizarra -->
+    <path d="M 20 155 Q 160 145 260 160 T 400 150 L 400 210 L 20 210 Z" fill="url(#strata3)"/>
+  </g>
+
+  <!-- Archaeological Trowel (Paletín de excavación tipo Marshalltown) -->
+  <g filter="url(#shadow)" transform="translate(14, -10)">
+    <!-- Triangular Blade -->
+    <path d="M 256 90 L 370 270 Q 375 282 360 286 L 270 292 L 270 330 L 290 330 Q 296 330 296 336 L 296 420 Q 296 428 288 428 L 224 428 Q 216 428 216 420 L 216 336 Q 216 330 222 330 L 242 330 L 242 292 L 152 286 Q 137 282 142 270 Z" 
+          fill="url(#bladeGrad)" stroke="#8A9E99" stroke-width="3"/>
+    
+    <!-- Central Ridge & highlight -->
+    <path d="M 256 92 L 256 290" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" opacity="0.8"/>
+    <path d="M 256 92 L 156 276" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+    
+    <!-- Tang / Shank (metal neck) -->
+    <path d="M 242 290 L 270 290 L 266 335 L 246 335 Z" fill="#47565B"/>
+    
+    <!-- Wooden / Rubber Handle -->
+    <rect x="220" y="336" width="72" height="90" rx="16" fill="#8B4513"/>
+    <rect x="226" y="344" width="60" height="74" rx="12" fill="#A0522D"/>
+    <!-- Handle grip rings -->
+    <line x1="222" y1="365" x2="288" y2="365" stroke="#5C2E0B" stroke-width="3"/>
+    <line x1="222" y1="385" x2="288" y2="385" stroke="#5C2E0B" stroke-width="3"/>
+    <line x1="222" y1="405" x2="288" y2="405" stroke="#5C2E0B" stroke-width="3"/>
+  </g>
+
+  <!-- V2 Golden Badge -->
+  <g transform="translate(330, 340)" filter="url(#shadow)">
+    <rect width="130" height="72" rx="18" fill="#DDAA4A" stroke="#FFFFFF" stroke-width="3"/>
+    <text x="65" y="50" font-family="'Barlow Condensed', 'Arial Narrow', sans-serif" font-size="44" font-weight="900" fill="#162024" text-anchor="middle" letter-spacing="1">V2</text>
+  </g>
+</svg>
