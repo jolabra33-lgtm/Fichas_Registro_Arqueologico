@@ -1017,7 +1017,9 @@ CONTEMPORÁNEO</pre>
         </p>
         <ul>
           <li><strong>Zoom y Desplazamiento:</strong> Usa la rueda del ratón o el pellizco táctil en tableta para hacer zoom in/out. Arrastra con el dedo para moverte por el grafo.</li>
-          <li><strong>Hacer clic en un nodo:</strong> Al pulsar sobre cualquier caja de UE, se abre de inmediato su ficha en el editor.</li>
+          <li><strong>Pulsar un nodo:</strong> resalta todo lo anterior y posterior a esa UE y muestra su resumen en el panel lateral. Con doble clic se abre su ficha.</li>
+          <li><strong>Filtrar por hecho o por fase:</strong> muestra solo esas UE, pero sin romper la secuencia. Si entre dos UE visibles hay otras que el filtro deja fuera (por ejemplo, 0003 › 0005 › 0007 y la 0005 es de otra fase), la matriz une 0003 con 0007 mediante una <strong>línea de puntos</strong>. Lo mismo ocurre al desmarcar <span class="ui-pill">Sin ficha</span> con las UE citadas que todavía no tienen ficha.</li>
+          <li><strong>Línea continua y línea de puntos:</strong> la línea continua es una relación registrada en las fichas entre esas dos UE (cubre, corta, rellena, se apoya). La de puntos es una <strong>relación deducida</strong>: no es un contacto observado entre ellas, sino la consecuencia de la secuencia a través de UE no mostradas. Así se distingue, como pide el método de Harris, lo registrado de lo deducido. La leyenda, la matriz impresa y las exportaciones DOT y GraphML también lo indican.</li>
           <li><strong>Bandas de Fase Horizontales:</strong> Si configuraste fases en los ajustes del proyecto, la matriz mostrará bandas de color horizontales agrupando las UEs de cada época histórica.</li>
           <li><strong>Exportar Grafo:</strong> En la barra de herramientas de la matriz tienes dos botones científicos:
             <br>• <span class="ui-pill">GraphML (Gephi)</span>: Descarga el archivo de red para análisis de centralidad y maquetación en <strong>Gephi</strong> o <strong>Cytoscape</strong>.

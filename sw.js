@@ -1,7 +1,7 @@
 // Service Worker — Registro de Excavación Arqueológica V2
 // Cache-First strategy for 100% offline field usage
 
-const CACHE_NAME = 'registro-arq-v2-cache-v7';
+const CACHE_NAME = 'registro-arq-v2-cache-v8';
 // Solo archivos que existen: cache.addAll falla entero si falta uno.
 const PRECACHE_ASSETS = [
   './',

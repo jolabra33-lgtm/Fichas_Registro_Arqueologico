@@ -1191,20 +1191,39 @@ function photoGrid(path, o = {}) {
 const NW = 64, NH = 36, EQG = 30, GX = 24, GY = 56;
 
 function harrisModel(p, opt = {}) {
-  const key = JSON.stringify([opt.scope ? [...opt.scope] : null, opt.hecho || '', !!opt.reduce, !!opt.missing]);
+  const key = JSON.stringify([opt.scope ? [...opt.scope] : null, opt.hecho || '', opt.fase || '', !!opt.reduce, !!opt.missing]);
   if (p._hm && p._hm.key === key) return p._hm.m;
   const { byUE: idx } = ix(p);
   const recs = p.records.filter(r => r.type !== 'muraria' && r.ue != null && (!opt.scope || opt.scope.has(r.ue)) && (!opt.hecho || r.hecho === opt.hecho) && (!opt.fase || r.fase === opt.fase));
   const nodes = new Map(); recs.forEach(r => nodes.set(r.ue, { ue: r.ue, rec: r }));
-  const later = new Map(); const eq = []; const pair = [];
+  const later = new Map(); const eq = [];
+  const direct = new Set(); // relaciones registradas en las fichas entre dos UE visibles («a>b»)
   const addE = (a, b) => { if (a === b) return; if (!later.has(a)) later.set(a, new Set()); later.get(a).add(b); };
+  // UE citadas que no tienen ficha (si se muestran) e «igual a / equivale» entre las UE visibles
   for (const r of recs) {
     for (const k in r.rel) for (const n of r.rel[k]) {
       if (n === r.ue) continue;
-      if (!nodes.has(n)) { if (!idx.has(n) && opt.missing && (!opt.scope || opt.scope.has(n) || true)) nodes.set(n, { ue: n, missing: true }); else continue; }
-      if (POSTERIOR.has(k)) addE(r.ue, n); else if (ANTERIOR.has(k)) addE(n, r.ue); else eq.push([r.ue, n, k]);
+      if (!nodes.has(n)) { if (!idx.has(n) && opt.missing) nodes.set(n, { ue: n, missing: true }); else continue; }
+      if (POSTERIOR.has(k)) direct.add(r.ue + '>' + n); else if (ANTERIOR.has(k)) direct.add(n + '>' + r.ue); else eq.push([r.ue, n, k]);
     }
   }
+  // Grafo completo de anterioridad con TODAS las fichas. Las relaciones entre UE visibles se buscan a través
+  // de las UE ocultas (por filtro de hecho/fase o por no tener ficha), para que no se pierda la secuencia:
+  // si 3 › 5 › 7 y la 5 queda fuera, la matriz sigue mostrando 3 › 7.
+  const full = new Map();
+  const addF = (a, b) => { if (a === b) return; if (!full.has(a)) full.set(a, new Set()); full.get(a).add(b); };
+  for (const r of p.records) {
+    if (r.type === 'muraria' || r.ue == null || !r.rel) continue;
+    for (const k in r.rel) for (const n of r.rel[k]) { if (POSTERIOR.has(k)) addF(r.ue, n); else if (ANTERIOR.has(k)) addF(n, r.ue); }
+  }
+  nodes.forEach((_, a) => {
+    const st = [...(full.get(a) || [])]; const seen = new Set();
+    while (st.length) {
+      const w = st.pop(); if (seen.has(w)) continue; seen.add(w);
+      if (nodes.has(w)) { addE(a, w); continue; }
+      (full.get(w) || []).forEach(x => { if (!seen.has(x)) st.push(x); });
+    }
+  });
   // grupos de contemporaneidad (igual a / equivale)
   const par = new Map(); const find = x => { while (par.get(x) !== x) { par.set(x, par.get(par.get(x))); x = par.get(x); } return x; };
   nodes.forEach((_, u) => par.set(u, u));
@@ -1249,7 +1268,8 @@ function harrisModel(p, opt = {}) {
   const maxW = Math.max(1500, ...laid.map(l => l.w)); let x = 0, y = 0, rowH = 0; const GAP = 70; const out = { nodes: [], edges: [], eqs: [], cyc: [], width: 0, height: 0, lone: [] };
   const place = (l, ox, oy) => {
     l.items.forEach(it => { if (it.dummy) return; it.members.forEach((u, i) => out.nodes.push({ ue: u, x: ox + it.x + i * (NW + EQG), y: oy + it.y, w: NW, h: NH, rec: nodes.get(u).rec, missing: !!nodes.get(u).missing })); if (it.members.length > 1) for (let i = 0; i < it.members.length - 1; i++) { const a = it.members[i], b = it.members[i + 1]; const same = eq.filter(e => (e[0] === a || e[1] === a) && (e[0] === b || e[1] === b)); out.eqs.push({ x1: ox + it.x + i * (NW + EQG) + NW, x2: ox + it.x + (i + 1) * (NW + EQG), y: oy + it.y + NH / 2, kind: (same.some(e => e[2] === 'igual') ? 'igual' : 'equivale'), a, b }); } });
-    l.paths.forEach(pt => out.edges.push({ pts: pt.pts.map(q => [q[0] + ox, q[1] + oy]), a: pt.a, b: pt.b }));
+    // derived: la relación no está registrada entre estas dos UE, se deduce a través de UE no mostradas
+    l.paths.forEach(pt => out.edges.push({ pts: pt.pts.map(q => [q[0] + ox, q[1] + oy]), a: pt.a, b: pt.b, derived: !direct.has(pt.a + '>' + pt.b) }));
   };
   laid.forEach(l => { if (x > 0 && x + l.w > maxW) { x = 0; y += rowH + GAP; rowH = 0; } place(l, x, y); x += l.w + GAP; rowH = Math.max(rowH, l.h); out.width = Math.max(out.width, x - GAP); });
   out.height = laid.length ? y + rowH : 0;
@@ -1289,14 +1309,16 @@ function layoutComp(cids, glist, red, gPairs) {
   segs.forEach(([a, b]) => { dnN.get(a).push(b); upN.get(b).push(a); });
   // minimización de cruces: barycenter
   layers.forEach(l => l.sort((a, b) => (a.g ?? 1e9) - (b.g ?? 1e9)));
-  const idxOf = () => { const m = new Map(); layers.forEach(l => l.forEach((i, k) => m.set(i, k))); return m; };
+  // Posición de cada elemento dentro de su capa; se actualiza solo la capa que se reordena.
+  const m = new Map(); layers.forEach(l => l.forEach((i, k) => m.set(i, k)));
   for (let it = 0; it < 10; it++) {
     const down = it % 2 === 0;
     const seq = down ? layers.map((_, i) => i).slice(1) : layers.map((_, i) => i).slice(0, -1).reverse();
     seq.forEach(li => {
-      const m = idxOf(); const nb = down ? upN : dnN;
+      const nb = down ? upN : dnN;
       const bc = new Map(); layers[li].forEach((i, k) => { const ns = nb.get(i); bc.set(i, ns.length ? ns.reduce((s, x) => s + m.get(x), 0) / ns.length : k); });
       layers[li].sort((a, b) => bc.get(a) - bc.get(b));
+      layers[li].forEach((i, k) => m.set(i, k));
     });
   }
   // coordenadas x
@@ -1360,7 +1382,7 @@ function harrisInner(m, p, o) {
   m.edges.forEach(e => {
     const pts = e.pts; let d = `M${pts[0][0]} ${pts[0][1]}`;
     for (let i = 1; i < pts.length; i++) { const [x1, y1] = pts[i - 1], [x2, y2] = pts[i]; const dy = Math.max(10, (y2 - y1) / 2); d += ` C${x1} ${y1 + dy} ${x2} ${y2 - dy} ${x2} ${y2}`; }
-    s += `<path class="he${hi && hi.has(e.a) && hi.has(e.b) ? ' hl' : ''}" d="${d}" fill="none" stroke="${pal.line}" stroke-width="1.5" data-a="${e.a}" data-b="${e.b}"/>`;
+    s += `<path class="he${hi && hi.has(e.a) && hi.has(e.b) ? ' hl' : ''}" d="${d}" fill="none" stroke="${pal.line}" stroke-width="1.5"${e.derived ? ' stroke-dasharray="1.5 4" stroke-linecap="round"' : ''} data-a="${e.a}" data-b="${e.b}">${e.derived ? `<title>UE ${fu(e.a)} › UE ${fu(e.b)}: relación deducida a través de UE no mostradas</title>` : ''}</path>`;
   });
   m.eqs.forEach(q => {
     const cl = `he${hi && hi.has(q.a) && hi.has(q.b) ? ' hl' : ''}`;
@@ -1444,7 +1466,7 @@ function generateHarrisGraphML(p) {
 
   m.edges.forEach((e, idx) => {
     xml += `    <edge id="e_${idx}" source="UE_${e.a}" target="UE_${e.b}">\n`;
-    xml += `      <data key="d_rel">cubre_o_posterior</data>\n`;
+    xml += `      <data key="d_rel">${e.derived ? 'posterior_deducida' : 'cubre_o_posterior'}</data>\n`;
     xml += '    </edge>\n';
   });
 
@@ -1489,7 +1511,7 @@ function generateHarrisDOT(p) {
   });
 
   m.edges.forEach(e => {
-    dot += `  "${e.a}" -> "${e.b}";\n`;
+    dot += `  "${e.a}" -> "${e.b}"${e.derived ? ' [style=dashed, color="#8A9E99", tooltip="relación deducida a través de UE no mostradas"]' : ''};\n`;
   });
 
   m.eqs.forEach(q => {
@@ -1520,9 +1542,9 @@ function analyze(p) {
   // ciclos y contradicciones
   const m = harrisModel(p, { reduce: false, missing: false });
   const seen = new Set();
-  m.cyc.forEach(c => { const k = [c.a, c.b].sort(numAsc).join('-'); if (seen.has(k)) return; seen.add(k); add('err', 'cycle', `Contradicción estratigráfica: la relación entre UE ${c.a} y UE ${c.b} cierra un ciclo (algo sería anterior y posterior a sí mismo).`, idx.get(c.a), { act: 'goue', label: 'Abrir UE ' + c.a, n: c.a }); });
+  m.cyc.forEach(c => { const k = [c.a, c.b].sort(numAsc).join('-'); if (seen.has(k)) return; seen.add(k); add('err', 'cycle', `Contradicción estratigráfica: la relación entre UE ${fu(c.a)} y UE ${fu(c.b)} cierra un ciclo (algo sería anterior y posterior a sí mismo).`, idx.get(c.a), { act: 'goue', label: 'Abrir UE ' + fu(c.a), n: c.a }); });
   // grupo contemporáneo con relación de anterioridad interna
-  m.eqList.forEach(([a, b]) => { const A = m.down.get(a), B = m.down.get(b); if ((A && A.has(b)) || (B && B.has(a))) add('err', 'eqord', `UE ${a} y UE ${b} figuran como iguales o equivalentes y a la vez en relación de anterioridad.`, idx.get(a)); });
+  m.eqList.forEach(([a, b]) => { const A = m.down.get(a), B = m.down.get(b); const k = 'eq' + [a, b].sort(numAsc).join('-'); if (((A && A.has(b)) || (B && B.has(a))) && !seen.has(k) && seen.add(k)) add('err', 'eqord', `UE ${fu(a)} y UE ${fu(b)} figuran como iguales o equivalentes y a la vez en relación de anterioridad.`, idx.get(a)); });
   // sin relaciones
   recs.forEach(r => { if (!Object.values(r.rel).some(a => a.length) && p.records.length > 1) add('warn', 'iso', `La UE ${fu(r.ue)} no tiene ninguna relación estratigráfica registrada.`, r); });
   // coherencia cronológica heurística
@@ -3680,7 +3702,7 @@ function hsideHTML(m) {
   else if (h.color === 'fase') leg = fases(p).map((x, i) => sw(CAT[i % CAT.length], x)).join('') + sw(pal.grey, 'Sin fase');
   else leg = periodos(p).map((x, i) => sw(CAT[i % CAT.length], x)).join('') + sw(pal.grey, 'Sin datar');
   const nl = m.edges.length + m.eqs.length;
-  s += `<section class="panel"><header><h3>Leyenda</h3></header><div class="bd"><div class="legend" style="flex-direction:column;gap:6px">${leg}</div><hr class="hr" style="margin:12px 0"><div class="legend" style="gap:8px 14px"><span><svg width="26" height="8" aria-hidden="true"><line x1="0" x2="26" y1="1.5" y2="1.5" stroke="${pal.line}" stroke-width="1.5"/><line x1="0" x2="26" y1="6.5" y2="6.5" stroke="${pal.line}" stroke-width="1.5"/></svg> Igual a</span><span><svg width="26" height="8" aria-hidden="true"><line x1="0" x2="26" y1="4" y2="4" stroke="${pal.line}" stroke-width="1.6" stroke-dasharray="4 3"/></svg> Equivale</span><span><svg width="26" height="8" aria-hidden="true"><line x1="0" x2="26" y1="4" y2="4" stroke="${pal.err}" stroke-width="2" stroke-dasharray="6 4"/></svg> Contradicción</span></div></div></section>`;
+  s += `<section class="panel"><header><h3>Leyenda</h3></header><div class="bd"><div class="legend" style="flex-direction:column;gap:6px">${leg}</div><hr class="hr" style="margin:12px 0"><div class="legend" style="gap:8px 14px"><span><svg width="26" height="8" aria-hidden="true"><line x1="0" x2="26" y1="1.5" y2="1.5" stroke="${pal.line}" stroke-width="1.5"/><line x1="0" x2="26" y1="6.5" y2="6.5" stroke="${pal.line}" stroke-width="1.5"/></svg> Igual a</span><span><svg width="26" height="8" aria-hidden="true"><line x1="0" x2="26" y1="4" y2="4" stroke="${pal.line}" stroke-width="1.6" stroke-dasharray="4 3"/></svg> Equivale</span><span><svg width="26" height="8" aria-hidden="true"><line x1="0" x2="26" y1="4" y2="4" stroke="${pal.err}" stroke-width="2" stroke-dasharray="6 4"/></svg> Contradicción</span>${m.edges.some(e => e.derived) ? `<span title="No es un contacto registrado entre esas dos UE: se deduce de la secuencia a través de UE que el filtro deja fuera o que no tienen ficha."><svg width="26" height="8" aria-hidden="true"><line x1="1" x2="25" y1="4" y2="4" stroke="${pal.line}" stroke-width="1.6" stroke-dasharray="1.5 4" stroke-linecap="round"/></svg> Relación deducida (a través de UE no mostradas)</span>` : ''}</div></div></section>`;
   s += `<section class="panel"><header><h3>Resumen</h3></header><div class="bd"><dl class="kv"><dt>Unidades</dt><dd class="mono">${m.count}</dd><dt>Relaciones</dt><dd class="mono">${nl}</dd><dt>Sin relaciones</dt><dd class="mono">${m.lone.length}</dd><dt>Contradicciones</dt><dd class="mono" style="${m.cyc.length ? 'color:var(--err);font-weight:600' : ''}">${m.cyc.length}</dd></dl></div></section>`;
   const sel = h.sel; const n = sel != null ? m.nodes.find(x => x.ue === sel) : null;
   if (n) {
@@ -3735,7 +3757,9 @@ async function exportHarrisPNG() {
 }
 function printHarris() {
   const p = P(); const svg = harrisStatic(p, hopts(), { colorBy: S.hv.color, labels: S.hv.labels }); if (!svg) return;
-  const inner = `<div class="sheet" style="width:277mm"><div class="hd"><img class="lg" src="${LOGO}" alt=""><h1>MATRIZ DE HARRIS<span class="sub">${esc(p.name)}${S.hv.hecho ? ' · Hecho ' + esc(S.hv.hecho) : ''}</span></h1><div class="au">${fmtDate(today())}</div></div><div class="hs">${svg}</div></div>`;
+  const ded = harrisModel(p, hopts()).edges.some(e => e.derived);
+  const nota = ded ? `<p style="font:9pt Arial,sans-serif;margin:2mm 0 0;color:#444"><svg width="26" height="8" aria-hidden="true"><line x1="1" x2="25" y1="4" y2="4" stroke="#444" stroke-width="1.6" stroke-dasharray="1.5 4" stroke-linecap="round"/></svg> Línea de puntos: relación deducida de la secuencia a través de UE que no aparecen en esta matriz (no es un contacto registrado entre esas dos UE).</p>` : '';
+  const inner = `<div class="sheet" style="width:277mm"><div class="hd"><img class="lg" src="${LOGO}" alt=""><h1>MATRIZ DE HARRIS<span class="sub">${esc(p.name)}${S.hv.hecho ? ' · Hecho ' + esc(S.hv.hecho) : ''}${S.hv.fase ? ' · ' + esc(S.hv.fase) : ''}</span></h1><div class="au">${fmtDate(today())}</div></div><div class="hs">${svg}</div>${nota}</div>`;
   outputPrint(inner, `harris-${slug(p.name)}`, { landscape: true });
 }
 
