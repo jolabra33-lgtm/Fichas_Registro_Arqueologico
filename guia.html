@@ -3,7 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#16625E">
   <title>Guía Práctica de Uso — Registro de Excavación Arqueológica V2</title>
@@ -1253,6 +1255,34 @@ CONTEMPORÁNEO</pre>
           </div>
         </div>
 
+        <h3>Qué hay dentro de una copia: las fotos ordenadas por unidad</h3>
+        <p>
+          Una copia <code>.zip</code> se puede abrir con el explorador de archivos del ordenador o con la app <strong>Archivos</strong> del iPad (pulsando sobre ella se descomprime). Dentro hay un archivo <code>registro.json</code> con todas las fichas y una carpeta <code>fotos</code> con <strong>una subcarpeta por unidad</strong>. Cada foto lleva un nombre que dice a qué unidad pertenece y qué es:
+        </p>
+        <div class="table-box">
+          <table class="guide-table">
+            <thead><tr><th style="width:42%">Nombre dentro del .zip</th><th>Qué es</th></tr></thead>
+            <tbody>
+              <tr><td><code>fotos/UE_0001/UE_0001_foto_01.webp</code><br><code>fotos/UE_0001/UE_0001_foto_02.webp</code></td><td>Fotografías de la UE 0001, en el orden en que aparecen en la ficha.</td></tr>
+              <tr><td><code>fotos/UE_0001/UE_0001_localizacion.webp</code></td><td>Plano de localización de la UE.</td></tr>
+              <tr><td><code>fotos/UE_0001/UE_0001_croquis.webp</code></td><td>Croquis de la UE (en los esqueletos, también <code>…_croquis_disposicion</code>).</td></tr>
+              <tr><td><code>fotos/CATA_0001/CATA_0001_planta.webp</code></td><td>Imágenes de la cata muraria: <code>planta</code>, <code>seccion</code>, <code>harris</code> y <code>foto_01</code>…</td></tr>
+              <tr><td><code>fotos/UE_0004/MAT_EJ-26-UE4-1_foto_01.webp</code></td><td>Foto de un material inventariado, guardada en la carpeta de su UE y con su sigla (los caracteres como <code>/</code> se cambian por <code>-</code>).</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul>
+          <li>El número de UE sigue el formato del proyecto (<code>0001</code>, <code>001</code>…). Las fotos llevan dos cifras (<code>foto_01</code>) para que el explorador las ordene bien.</li>
+          <li>En una copia incremental solo aparecen las carpetas y fotos nuevas desde la copia anterior.</li>
+          <li>El número de la foto es su posición en la ficha: si se borra una foto, las siguientes cambian de número en las copias posteriores. Si se renumera una UE, sus fotos cambian de carpeta y de nombre. A la app no le afecta, porque importa con el índice interno de <code>registro.json</code>, no con los nombres.</li>
+          <li>Si la misma imagen se usa en dos sitios (por ejemplo, como croquis de dos UE), se guarda una sola vez, con el nombre del primero.</li>
+          <li>Las copias hechas con versiones anteriores tienen las fotos con un código (<code>fotos/im_9j7x….webp</code>). Se siguen importando y restaurando igual, y se pueden mezclar con las nuevas en <span class="ui-pill">Restaurar desde varias copias…</span>.</li>
+        </ul>
+        <div class="callout warn">
+          <div class="callout-title">Para consultar, no para editar</div>
+          <p>Abrir la copia para ver o sacar fotos es seguro. Pero si vas a importarla después, <strong>guarda el .zip tal como se descargó</strong>: no renombres, muevas ni borres nada dentro, ni lo vuelvas a comprimir.</p>
+        </div>
+
         <h3>Importar una copia</h3>
 
         <div class="step-card">
@@ -1531,6 +1561,23 @@ CONTEMPORÁNEO</pre>
           <p>
             La app funciona sin conexión gracias a una copia guardada en el dispositivo, que se renueva en segundo plano. Con conexión a internet, ciérrala y vuelve a abrirla una o dos veces y aparecerá la versión nueva (por ejemplo, el botón <span class="ui-pill">▾</span> junto a <em>Fase / Complejo</em>).
           </p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title">La app tiene icono nuevo, pero en mi iPad sigue el antiguo</div>
+          <p>
+            Es normal: el iPad guarda el icono de la pantalla de inicio cuando se añade la app y no lo cambia después. La app funciona igual con el icono antiguo; dentro ya se ve el nuevo (arriba a la izquierda). Si quieres el icono nuevo en la pantalla de inicio:
+          </p>
+          <ol>
+            <li><strong>Antes de nada, haz una copia completa</strong> (<span class="ui-pill">Exportar copia completa (.zip)</span>) y comprueba que todas sus partes están fuera del iPad (ordenador, pendrive o nube).</li>
+            <li>Mantén pulsado el icono antiguo &rarr; <em>Eliminar app</em>.</li>
+            <li>Abre la dirección de la app en Safari &rarr; botón <em>Compartir</em> &rarr; <em>Añadir a pantalla de inicio</em>.</li>
+            <li>Abre la app nueva. Si no aparecen tus proyectos, impórtalos con <span class="ui-pill">Importar copia</span> seleccionando todas las partes de la copia del paso 1.</li>
+          </ol>
+          <div class="callout warn">
+            <div class="callout-title">Quitar la app del iPad puede borrar sus datos</div>
+            <p>En el iPad, la app añadida a la pantalla de inicio guarda sus datos aparte, y al eliminarla se pueden perder. No la quites sin tener antes la copia completa a salvo fuera del iPad.</p>
+          </div>
         </div>
 
         <div class="step-card">

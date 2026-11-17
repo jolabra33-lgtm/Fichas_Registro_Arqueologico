@@ -1,7 +1,7 @@
 // Service Worker — Registro de Excavación Arqueológica V2
 // Cache-First strategy for 100% offline field usage
 
-const CACHE_NAME = 'registro-arq-v2-cache-v8';
+const CACHE_NAME = 'registro-arq-v2-cache-v9';
 // Solo archivos que existen: cache.addAll falla entero si falta uno.
 const PRECACHE_ASSETS = [
   './',
@@ -11,9 +11,15 @@ const PRECACHE_ASSETS = [
   './qrcode.min.js',
   './jszip.min.js',
   './manifest.json',
-  './icons/icon.svg',
+  './favicon.ico',
+  './icons/favicon-16.png',
+  './icons/favicon-32.png',
+  './icons/icon-72.png',
+  './icons/apple-touch-icon.png',
   './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icons/icon-512.png',
+  './icons/icon-maskable-192.png',
+  './icons/icon-maskable-512.png'
 ];
 
 // Instalación: precachear recursos críticos

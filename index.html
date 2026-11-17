@@ -6,8 +6,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Registro Arq V2">
-<link rel="icon" type="image/svg+xml" href="icons/icon.svg">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <script src="plates.js"></script>
 <script src="qrcode.min.js"></script>
@@ -427,7 +429,7 @@ body.noscroll{overflow:hidden}
 <div id="app">
   <aside id="side" aria-label="Navegación principal">
     <div class="brand">
-      <svg class="mark" viewBox="0 0 34 34" aria-hidden="true"><rect x="1" y="1" width="32" height="32" rx="6" fill="var(--accent)"/><path d="M6 11h22M6 17h22M6 23h22" stroke="var(--accent-ink)" stroke-width="2.2" stroke-linecap="round"/><path d="M11 11v6M20 17v6M15 6v5" stroke="var(--accent-ink)" stroke-width="2.2" stroke-linecap="round" opacity=".55"/></svg>
+      <img class="mark" src="icons/icon-72.png" width="34" height="34" alt="">
       <div><b>Registro</b><small>de excavación</small></div>
     </div>
     <div class="pj"><span class="lb">Proyecto</span><select id="pjsel" aria-label="Proyecto activo"></select></div>
@@ -1645,11 +1647,51 @@ async function planZipBackup(p, mode = 'completa') {
   }
   return { mode, omitidas, archivadas, desde: p.lastBackup || 0, project: JSON.parse(raw), items, parts, setId: uid('bk'), exportedAt: new Date().toISOString() };
 }
+/* ---------- Nombres legibles de las fotos dentro de la copia ----------
+   Cada foto se guarda en la carpeta de su UE con un nombre que dice de dónde es:
+   fotos/UE_0001/UE_0001_foto_01.webp, fotos/UE_0001/UE_0001_croquis.webp, fotos/CATA_0001/CATA_0001_planta.webp,
+   fotos/UE_0004/MAT_EJ-26-UE4-1_foto_01.webp… Solo es para quien abra el ZIP: la app importa y restaura con el
+   índice «imagenes» de registro.json (identificador → ruta), así que las copias antiguas siguen funcionando. */
+function backupPhotoNames(p) {
+  const names = new Map(), used = new Set();
+  const safe = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'sin-nombre';
+  const num = n => safe(fu(n, p));
+  const LBL = { fotos: 'foto', localizacionImg: 'localizacion', fotoPlanta: 'planta', fotoSeccion: 'seccion', harrisImg: 'harris', croquis: 'croquis', croqDisp: 'croquis_disposicion' };
+  const label = path => {          // path: claves desde la ficha hasta el identificador, p. ej. ['fotos', 2, 'img']
+    const parts = []; let idx = null;
+    path.forEach(k => {
+      if (typeof k === 'number') { if (idx === null) idx = k; return; }
+      if (k === 'img' || k === 'esq') return;
+      parts.push(k === 'bg' ? 'fondo' : (LBL[k] || safe(k)));
+    });
+    let s = parts.join('_') || 'imagen';
+    if (idx !== null && !(path.length && SINGLE.has(path[0]))) s += '_' + String(idx + 1).padStart(2, '0');
+    return s;
+  };
+  const walk = (o, path, cb) => {
+    if (typeof o === 'string') { if (/^im_[a-z0-9]+$/.test(o)) cb(o, path); return; }
+    if (Array.isArray(o)) o.forEach((x, i) => walk(x, path.concat(i), cb));
+    else if (o && typeof o === 'object') for (const k in o) walk(o[k], path.concat(k), cb);
+  };
+  const assign = (dir, prefix, obj) => walk(obj, [], (id, path) => {
+    if (names.has(id)) return;   // una foto usada en dos sitios conserva el nombre del primero
+    let base = `${prefix}_${label(path)}`, n = 2;
+    while (used.has(dir + '/' + base)) base = `${prefix}_${label(path)}_${n++}`;
+    used.add(dir + '/' + base); names.set(id, `fotos/${dir}/${base}`);
+  });
+  const recs = [...(p.records || [])].sort((a, b) => ((a.type === 'muraria') - (b.type === 'muraria')) || ((a.ue || a.num || 0) - (b.ue || b.num || 0)));
+  recs.forEach(r => { const pre = r.type === 'muraria' ? 'CATA_' + num(r.num) : 'UE_' + num(r.ue); assign(pre, pre, r); });
+  (p.finds || []).forEach(f => assign(f.ue != null ? 'UE_' + num(f.ue) : 'materiales', 'MAT_' + safe(f.sigla), { fotos: f.fotos || [] }));
+  (p.samples || []).forEach(s => assign(s.ue != null ? 'UE_' + num(s.ue) : 'muestras', 'MUESTRA_' + safe(s.numMuestra), s));
+  assign('otras', 'proyecto', p.meta || {});
+  return names;
+}
 function buildZipPart(plan, i) {
   if (typeof JSZip === 'undefined') throw new Error('Falta la librería jszip.min.js.');
   const zip = new JSZip(), fotos = {};
+  if (!plan.names) plan.names = backupPhotoNames(plan.project);
   for (const it of plan.parts[i].items) {
-    const path = `fotos/${it.id}.${MIME_EXT[it.blob.type] || 'bin'}`;
+    const path = `${plan.names.get(it.id) || 'fotos/otras/' + it.id}.${MIME_EXT[it.blob.type] || 'bin'}`;
     fotos[it.id] = path; zip.file(path, it.blob, { binary: true });
   }
   zip.file('registro.json', JSON.stringify({
@@ -1982,6 +2024,7 @@ const BACKUP_HELP = {
       <li>Mueva los archivos a una carpeta del proyecto (por ejemplo, <i>Copias Santa Clara</i>) y llévela a un lugar seguro: ordenador, pendrive o nube.</li>
     </ol>
     <div class="help-note"><b>Importante:</b> no borre ninguna copia incremental, porque cada una lleva fotos que no están en las demás. Haga además una copia completa de vez en cuando (por ejemplo, una por semana).</div>
+    <div class="help-note"><b>¿Qué hay dentro del .zip?</b> Si lo descomprime, las fotos están ordenadas en una carpeta por unidad, con nombres que dicen de dónde es cada una: <i>fotos/UE_0001/UE_0001_foto_01.webp</i>, <i>UE_0001_croquis</i>, <i>UE_0001_localizacion</i>, <i>CATA_0001_planta</i> o <i>MAT_</i>(sigla)<i>_foto_01</i> para los materiales. No renombre ni mueva nada dentro del .zip si luego lo va a importar: guarde el archivo tal como se descargó.</div>
     <div class="help-note"><b>¿El iPad se queda sin espacio?</b> Cuando las copias estén a salvo, use <b>«Archivar fotos ya respaldadas»</b> (en Mantenimiento): las fotos que ya están en una copia se quedan como miniatura en el dispositivo.</div>` },
   importar: { t: 'Importar', h: `
     <p style="margin:0 0 8px"><b>Para qué:</b> pasar el proyecto a otro dispositivo, o que el director reciba el trabajo diario de cada tableta.</p>

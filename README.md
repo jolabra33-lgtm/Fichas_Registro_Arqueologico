@@ -117,9 +117,11 @@ La aplicación cuenta con una arquitectura basada en **Service Worker (`sw.js`)*
 
 ```text
 ├── icons/
-│   ├── icon-192.png              # Icono PWA (192x192 px)
-│   ├── icon-512.png              # Icono PWA (512x512 px maskable)
-│   └── icon.svg                  # Icono vectorial oficial
+│   ├── apple-touch-icon.png      # Icono del iPad (180x180 px, a sangre)
+│   ├── icon-192.png / icon-512.png             # Icono PWA (Android y escritorio)
+│   ├── icon-maskable-192.png / -512.png        # Icono adaptable (Android)
+│   ├── icon-72.png               # Logo de la barra lateral
+│   └── favicon-16.png / favicon-32.png         # Favicons (además de favicon.ico en la raíz)
 ├── .gitignore                    # Reglas de exclusión para Git
 ├── .nojekyll                     # Desactiva el procesador Jekyll en GitHub Pages
 ├── guia.html                     # Manual de usuario ilustrado (15 secciones)
