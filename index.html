@@ -437,6 +437,7 @@ body.noscroll{overflow:hidden}
     <div class="side-foot">
       <div class="savestate" id="savestate"></div>
       <div class="netstate" id="netstate"><span class="dot online"></span><span id="nettxt">Online</span></div>
+      <div class="savestate" id="appver" title="Versión de la aplicación que está usando este dispositivo">Versión <span id="appvernum"></span></div>
       <a href="guia.html" target="_blank" class="btn s" style="text-decoration:none;display:flex;align-items:center;justify-content:center;gap:6px;width:100%" title="Abrir Guía de Uso de la Aplicación"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>Guía de uso</a>
       <button type="button" id="btn-pwa-install" class="btn s p" data-act="installpwa"><svg class="i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Instalar App</button>
       <div class="seg sm" id="themeseg" role="group" aria-label="Tema"></div>
@@ -4988,6 +4989,7 @@ const ACT = {
 };
 Object.assign(ACT, ESQ_ACT);
 let lastCreate = 0;
+const APP_VERSION = '2.8';
 function createRec(type, ue) {
   const now = Date.now(); if (now - lastCreate < 600) return; lastCreate = now; // un doble toque no crea dos fichas
   const p = P(); const r = newRecord(type, p); if (ue && r.type !== 'muraria') r.ue = ue;
@@ -5114,6 +5116,7 @@ function updateNetStatus() {
 }
 
 (async function boot() {
+  { const v = document.getElementById('appvernum'); if (v) v.textContent = APP_VERSION; }
   applyTheme();
   
   // 1. Red y Service Worker

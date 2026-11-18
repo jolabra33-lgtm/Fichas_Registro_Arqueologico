@@ -1,7 +1,7 @@
 // Service Worker — Registro de Excavación Arqueológica V2
 // Cache-First strategy for 100% offline field usage
 
-const CACHE_NAME = 'registro-arq-v2-cache-v10';
+const CACHE_NAME = 'registro-arq-v2-cache-v11';
 // Solo archivos que existen: cache.addAll falla entero si falta uno.
 const PRECACHE_ASSETS = [
   './',
@@ -28,7 +28,9 @@ self.addEventListener('install', event => {
     caches.open(CACHE_NAME)
       .then(cache => {
         console.log('[SW] Precacheando recursos para funcionamiento offline...');
-        return cache.addAll(PRECACHE_ASSETS);
+        // cache: 'reload' obliga a descargar del servidor: sin ello, el navegador podía entregar la versión
+        // anterior que tenía en su caché HTTP (GitHub Pages la guarda 10 minutos) y quedarse con ella.
+        return cache.addAll(PRECACHE_ASSETS.map(u => new Request(u, { cache: 'reload' })));
       })
       .then(() => self.skipWaiting())
       .catch(err => {
@@ -63,7 +65,8 @@ self.addEventListener('fetch', event => {
     caches.match(request).then(cachedResponse => {
       if (cachedResponse) {
         // En segundo plano, si hay red, refrescar la caché (Stale-While-Revalidate)
-        fetch(request).then(networkResponse => {
+        // Refresco en segundo plano saltándose la caché HTTP, para que la próxima apertura tenga lo último.
+        fetch(request.url, { cache: 'no-cache', credentials: 'same-origin' }).then(networkResponse => {
           if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
             caches.open(CACHE_NAME).then(cache => cache.put(request, networkResponse.clone()));
           }
