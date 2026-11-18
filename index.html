@@ -4778,7 +4778,8 @@ const ACT = {
     const p = P();
     openModal({
       title: 'Nueva ficha', body: `<div class="g" style="gap:10px">${['estrato', 'estructura', 'esqueleto', 'muraria'].map(t => `<button type="button" class="btn" data-newtype="${t}" style="justify-content:flex-start;min-height:56px;padding:10px 14px;text-align:left"><span class="tag t-${t}">${TIPOS[t].label}</span><span class="muted" style="white-space:normal;font-weight:400">${{ estrato: 'Depósito o nivel sedimentario', estructura: 'Muro, pavimento, zanja, pozo…', esqueleto: 'Inhumación o incineración, con antropología', muraria: 'Registro de alzados y fábricas' }[t]}</span></button>`).join('')}<p class="note" style="margin:0">Se asignará el siguiente número libre (UE ${nextUE(p)}). Podrá cambiarlo en la ficha.</p></div>`,
-      onOpen: root => { root.addEventListener('click', e => { const b = e.target.closest('[data-newtype]'); if (!b) return; closeModal(true); createRec(b.dataset.newtype); }); }
+      // onclick (no addEventListener): #modal-root es permanente y los manejadores se acumulaban, creando una ficha más cada vez que se abría el menú.
+      onOpen: root => { const prev = root.onclick; root.onclick = e => { const b = e.target.closest('[data-newtype]'); if (!b) return prev && prev(e); closeModal(true); createRec(b.dataset.newtype); }; }
     });
   },
   setclaseue(el) {
@@ -4986,7 +4987,9 @@ const ACT = {
   newue(el) { createRec('estrato', +el.dataset.n); }
 };
 Object.assign(ACT, ESQ_ACT);
+let lastCreate = 0;
 function createRec(type, ue) {
+  const now = Date.now(); if (now - lastCreate < 600) return; lastCreate = now; // un doble toque no crea dos fichas
   const p = P(); const r = newRecord(type, p); if (ue && r.type !== 'muraria') r.ue = ue;
   if (r.type !== 'muraria') adoptIncoming(p, r);
   p.records.push(r); touch(r); S.rid = r.id; S.view = 'editor'; renderAll(); window.scrollTo({ top: 0 });
