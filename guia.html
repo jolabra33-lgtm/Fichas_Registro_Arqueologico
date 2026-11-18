@@ -1161,17 +1161,17 @@ CONTEMPORÁNEO</pre>
             <tbody>
               <tr>
                 <td><span class="ui-pill primary">Exportar copia completa (.zip)</span></td>
-                <td><code>convento-2026-11-12.zip</code><br>o varias partes <code>…-parte1de4.zip</code></td>
+                <td><code>convento-2026-11-12-181530.zip</code><br>o varias partes <code>…-181530-parte1de4.zip</code></td>
                 <td><strong>La copia de seguridad normal.</strong> Todas las fichas, relaciones, croquis, materiales, muestras y fotografías. Úsala al final de cada jornada y para pasar el proyecto a otro dispositivo.</td>
               </tr>
               <tr>
                 <td><span class="ui-pill">Copia incremental: solo lo nuevo (.zip)</span></td>
-                <td><code>convento-2026-11-13-incremental.zip</code></td>
+                <td><code>convento-2026-11-13-174012-incremental.zip</code></td>
                 <td><strong>La copia diaria en proyectos grandes.</strong> Todas las fichas (ocupan poco) y solo las fotos que todavía no han salido en ninguna copia. Una jornada normal son unas decenas de MB en lugar de varios GB.</td>
               </tr>
               <tr>
                 <td><span class="ui-pill">Solo datos, sin fotos (.json)</span></td>
-                <td><code>convento-2026-11-12-sin-imagenes.json</code></td>
+                <td><code>convento-2026-11-12-181530-sin-imagenes.json</code></td>
                 <td>Solo los datos (unos pocos KB). Útil para enviar por correo el estado de las fichas, pero <strong>no sirve como copia de seguridad completa</strong> porque no lleva fotos ni croquis.</td>
               </tr>
               <tr>
@@ -1249,6 +1249,13 @@ CONTEMPORÁNEO</pre>
           <p>
             En el iPad, Safari pregunta si quieres descargar cada archivo; acepta. Los archivos quedan en la app <strong>Archivos</strong> &rarr; <em>Descargas</em>. Muévelos juntos a una carpeta con el nombre y la fecha de la copia y llévalos a un lugar seguro (pendrive, ordenador, nube o AirDrop).
           </p>
+          <p>
+            <strong>El nombre lleva la fecha y la hora</strong> (<code>…-2026-11-18-172046.zip</code>: año, mes, día y después hora, minutos y segundos del dispositivo), de modo que dos copias del mismo día nunca se llaman igual ni se sobrescriben. Todas las partes de una misma copia comparten fecha y hora.
+          </p>
+          <div class="callout tip">
+            <div class="callout-title">Dos copias incrementales seguidas</div>
+            <p>Una copia incremental solo lleva las fotos que no estaban en ninguna copia anterior. Si haces dos seguidas, <strong>la segunda saldrá casi vacía</strong> (sin fotos), porque la primera ya las contenía. No borres la primera: es la que lleva las fotos. Para restaurar o juntar copias usa siempre <span class="ui-pill">Restaurar desde varias copias…</span> con todos los archivos.</p>
+          </div>
           <div class="callout warn">
             <div class="callout-title">Guarda siempre todas las partes de una misma copia</div>
             <p>No mezcles partes de copias de días distintos. Cada copia tiene un identificador interno y la app no permite importar a la vez partes de copias diferentes.</p>
@@ -1426,7 +1433,7 @@ CONTEMPORÁNEO</pre>
         <div class="step-card">
           <div class="step-title"><span class="step-badge">1</span> En cada tableta de campo: Exportar la copia</div>
           <p>
-            Cada arqueólogo entra en <span class="ui-pill">Proyecto y datos</span> y pulsa <span class="ui-pill primary">Exportar copia completa (.zip)</span>. Se descargará un archivo (p. ej. <code>solar-mayor-2026-10-26.zip</code>) que contiene todas las fichas, fotos y materiales creados en su dispositivo. Si hay muchas fotos, la copia se divide en varias partes de unos 100 MB (<code>…-parte1de4.zip</code>, <code>…-parte2de4.zip</code>…): hay que descargar todas. Se envían los archivos por AirDrop, cable USB, pendrive o la nube al ordenador del director. Los detalles de la exportación están en la <a href="#sec-12">sección 12</a>.
+            Cada arqueólogo entra en <span class="ui-pill">Proyecto y datos</span> y pulsa <span class="ui-pill primary">Exportar copia completa (.zip)</span>. Se descargará un archivo (p. ej. <code>solar-mayor-2026-10-26-181530.zip</code>) que contiene todas las fichas, fotos y materiales creados en su dispositivo. Si hay muchas fotos, la copia se divide en varias partes de unos 100 MB (<code>…-parte1de4.zip</code>, <code>…-parte2de4.zip</code>…): hay que descargar todas. Se envían los archivos por AirDrop, cable USB, pendrive o la nube al ordenador del director. Los detalles de la exportación están en la <a href="#sec-12">sección 12</a>.
           </p>
         </div>
 
@@ -1562,7 +1569,7 @@ CONTEMPORÁNEO</pre>
             La app funciona sin conexión gracias a una copia guardada en el dispositivo, que se renueva en segundo plano. Con conexión a internet, ciérrala y vuelve a abrirla una o dos veces y aparecerá la versión nueva.
           </p>
           <p>
-            <strong>Para saber qué versión tienes</strong>, mira la parte inferior de la barra lateral: pone <em>Versión 2.8</em> (o la que corresponda). En un ordenador puedes forzar la versión nueva al momento abriendo la app en Chrome con conexión y pulsando <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>. Si un fallo ya corregido te sigue apareciendo, comprueba primero este número.
+            <strong>Para saber qué versión tienes</strong>, mira la parte inferior de la barra lateral: pone <em>Versión 2.9</em> (o la que corresponda). En un ordenador puedes forzar la versión nueva al momento abriendo la app en Chrome con conexión y pulsando <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>. Si un fallo ya corregido te sigue apareciendo, comprueba primero este número.
           </p>
         </div>
 

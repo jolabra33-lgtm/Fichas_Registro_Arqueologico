@@ -1710,12 +1710,14 @@ async function markImagesBackedUp(p, items) {
     try { await idbPut('images', imgRow(it.id, p.id, it.blob)); } catch (e) { }
   }
 }
+// Fecha y hora local (hora del dispositivo) para los nombres de las copias: 2026-11-18-172046 (hhmmss). Así dos copias del mismo día no se pisan ni se confunden.
+const stampNow = d => { d = d ? new Date(d) : new Date(); const z = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}${z(d.getSeconds())}`; };
 async function exportZipBackup(p, mode = 'completa') {
   const inc = mode === 'incremental';
   const prog = progressToast(inc ? 'Preparando copia de lo nuevo…' : 'Preparando copia de seguridad…');
   let plan;
   try { plan = await planZipBackup(p, mode); } finally { prog.done(); }
-  const n = plan.parts.length, base = `${slug(p.name)}-${today()}${inc ? '-incremental' : ''}`;
+  const n = plan.parts.length, base = `${slug(p.name)}-${stampNow(plan.exportedAt)}${inc ? '-incremental' : ''}`;
   const fname = i => n === 1 ? `${base}.zip` : `${base}-parte${i + 1}de${n}.zip`;
   const markDone = async () => {
     await markImagesBackedUp(p, plan.items);
@@ -2022,9 +2024,9 @@ const BACKUP_HELP = {
         <li>los días siguientes, <b>«Copia incremental: solo lo nuevo (.zip)»</b> (todas las fichas y solo las fotos nuevas). El botón del Panel elige solo la adecuada.</li></ul></li>
       <li>Si la copia es grande, se abre una ventana con varias <b>partes</b>: pulse <b>«Descargar»</b> en cada una hasta que todas muestren <b>✓ Descargada</b>.</li>
       <li>En el iPad, Safari pregunta si quiere descargar cada archivo: acepte. Quedan en la app <b>Archivos → Descargas</b>.</li>
-      <li>Mueva los archivos a una carpeta del proyecto (por ejemplo, <i>Copias Santa Clara</i>) y llévela a un lugar seguro: ordenador, pendrive o nube.</li>
+      <li>Mueva los archivos a una carpeta del proyecto (por ejemplo, <i>Copias Santa Clara</i>). Cada archivo lleva fecha y hora en el nombre (<i>…-2026-11-18-172046.zip</i>), así que no se pisan aunque haga varias copias el mismo día y llévela a un lugar seguro: ordenador, pendrive o nube.</li>
     </ol>
-    <div class="help-note"><b>Importante:</b> no borre ninguna copia incremental, porque cada una lleva fotos que no están en las demás. Haga además una copia completa de vez en cuando (por ejemplo, una por semana).</div>
+    <div class="help-note"><b>Importante:</b> no borre ninguna copia incremental, porque cada una lleva fotos que no están en las demás. Si hace dos incrementales seguidas, la segunda saldrá casi vacía (la primera ya llevaba las fotos): guarde las dos. Haga además una copia completa de vez en cuando (por ejemplo, una por semana).</div>
     <div class="help-note"><b>¿Qué hay dentro del .zip?</b> Si lo descomprime, las fotos están ordenadas en una carpeta por unidad, con nombres que dicen de dónde es cada una: <i>fotos/UE_0001/UE_0001_foto_01.webp</i>, <i>UE_0001_croquis</i>, <i>UE_0001_localizacion</i>, <i>CATA_0001_planta</i> o <i>MAT_</i>(sigla)<i>_foto_01</i> para los materiales. No renombre ni mueva nada dentro del .zip si luego lo va a importar: guarde el archivo tal como se descargó.</div>
     <div class="help-note"><b>¿El iPad se queda sin espacio?</b> Cuando las copias estén a salvo, use <b>«Archivar fotos ya respaldadas»</b> (en Mantenimiento): las fotos que ya están en una copia se quedan como miniatura en el dispositivo.</div>` },
   importar: { t: 'Importar', h: `
@@ -4849,7 +4851,7 @@ const ACT = {
     if (!lite) { try { await exportZipBackup(p, el && el.dataset.inc ? 'incremental' : 'completa'); } catch (e) { console.error(e); toast('No se pudo generar la copia: ' + (e.message || e), 'err'); } return; }
     toast('Preparando copia de seguridad…');
     const b = await projectBundle(p, !lite);
-    const ok = await saveFile(`${slug(p.name)}-${today()}${lite ? '-sin-imagenes' : ''}.json`, JSON.stringify(b), 'application/json');
+    const ok = await saveFile(`${slug(p.name)}-${stampNow()}${lite ? '-sin-imagenes' : ''}.json`, JSON.stringify(b), 'application/json');
     if (ok && !lite) { p.lastBackup = Date.now(); await saveProjectNow(p); if (S.view === 'panel' || S.view === 'settings') renderView(); }
   },
   async importjson() {
@@ -4989,7 +4991,7 @@ const ACT = {
 };
 Object.assign(ACT, ESQ_ACT);
 let lastCreate = 0;
-const APP_VERSION = '2.8';
+const APP_VERSION = '2.9';
 function createRec(type, ue) {
   const now = Date.now(); if (now - lastCreate < 600) return; lastCreate = now; // un doble toque no crea dos fichas
   const p = P(); const r = newRecord(type, p); if (ue && r.type !== 'muraria') r.ue = ue;
