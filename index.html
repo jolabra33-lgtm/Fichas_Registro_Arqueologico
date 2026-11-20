@@ -523,7 +523,7 @@ const ICO = {
   fit: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>', text: '<path d="M5 6V4h14v2M12 4v16M9 20h6"/>',
   line: '<path d="M5 19L19 5"/>', rect: '<rect x="4" y="6" width="16" height="12"/>', ellipse: '<ellipse cx="12" cy="12" rx="9" ry="6"/>',
   grid: '<path d="M3 3h18v18H3zM9 3v18M15 3v18M3 9h18M3 15h18"/>', eraser: '<path d="M20 20H9L4 15l9-9 7 7-7 7"/>',
-  arrow: '<path d="M5 19L18 6"/><path d="M10 5h9v9"/>', tag: '<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8" r="1.4"/>', mark: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15l4-5 3 3 3-2"/><path d="M14 3l2 2"/>',
+  arrow: '<path d="M5 19L18 6"/><path d="M10 5h9v9"/>', move: '<path d="M12 3v18M3 12h18"/><path d="M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/>', tag: '<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8" r="1.4"/>', mark: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15l4-5 3 3 3-2"/><path d="M14 3l2 2"/>',
   book: '<path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/>',
   link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
   star: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>'
@@ -4531,8 +4531,15 @@ function strokeHit(s, x, y, tol) {
   if (s.t === 'ellipse') { const cx = (s.a[0] + s.b[0]) / 2, cy = (s.a[1] + s.b[1]) / 2, rx = Math.abs(s.b[0] - s.a[0]) / 2, ry = Math.abs(s.b[1] - s.a[1]) / 2; if (!rx || !ry) return false; const d = Math.hypot((x - cx) / rx, (y - cy) / ry); return Math.abs(d - 1) * Math.min(rx, ry) < tol; }
   if (s.t === 'text') return x > s.x - 4 && x < s.x + s.txt.length * s.fs * .6 + 4 && y > s.y - s.fs && y < s.y + 6;
   if (s.t === 'arrow') return segDist(x, y, s.a[0], s.a[1], s.b[0], s.b[1]) < tol;
-  if (s.t === 'tag') { const b = tagBox(s); return x > b.x - tol && x < b.x + b.w + tol && y > b.y - tol && y < b.y + b.h + tol; }
+  if (s.t === 'tag') { const b = tagBox(s); const bottom = s.st === 'pin' ? s.y : b.y + b.h; return x > b.x - tol && x < b.x + b.w + tol && y > b.y - tol && y < bottom + tol; }
   return false;
+}
+// Desplaza un trazo (herramienta «Mover»).
+function moveStroke(s, dx, dy) {
+  if (s.pts) s.pts = s.pts.map(([x, y]) => [x + dx, y + dy]);
+  if (s.a) s.a = [s.a[0] + dx, s.a[1] + dy];
+  if (s.b) s.b = [s.b[0] + dx, s.b[1] + dy];
+  if (typeof s.x === 'number') { s.x += dx; s.y += dy; }
 }
 /* Marcas sobre fotos: flecha, texto con contorno y etiqueta de UE (recuadro relleno). */
 const contrastInk = c => { const m = /^#?([0-9a-f]{6})$/i.exec(c || ''); if (!m) return '#ffffff'; const n = parseInt(m[1], 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) > 150 ? '#111111' : '#ffffff'; };
@@ -4540,7 +4547,16 @@ let _mctx = null;
 function tagBox(s) {
   if (!_mctx) _mctx = document.createElement('canvas').getContext('2d');
   _mctx.font = `bold ${s.fs}px Arial, sans-serif`; const w = _mctx.measureText(s.txt).width; const pad = s.fs * .38;
-  return { x: s.x - w / 2 - pad, y: s.y - s.fs / 2 - pad * .7, w: w + pad * 2, h: s.fs + pad * 1.4 };
+  const bw = w + pad * 2, bh = s.fs + pad * 1.4;
+  // Estilo «pin» (marcador): el punto tocado es la punta y el recuadro queda encima.
+  const cy = s.st === 'pin' ? s.y - s.fs * .5 - bh / 2 : s.y;
+  return { x: s.x - bw / 2, y: cy - bh / 2, w: bw, h: bh, cy };
+}
+function pinPath(ctx, b, s) {
+  const r = b.h * .22, tw = Math.min(b.w * .3, s.fs * .55), x = b.x, y = b.y, w = b.w, h = b.h, cx = s.x;
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r); ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(cx + tw / 2, y + h); ctx.lineTo(cx, s.y); ctx.lineTo(cx - tw / 2, y + h);
+  ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r); ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
 }
 function rrPath(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r); ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h); ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r); ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath(); }
 function drawStroke(ctx, s) {
@@ -4555,14 +4571,28 @@ function drawStroke(ctx, s) {
     ctx.fillText(s.txt, s.x, s.y);
   }
   else if (s.t === 'arrow') {
-    const [ax, ay] = s.a, [bx, by] = s.b; const ang = Math.atan2(by - ay, bx - ax); const L = Math.max(14, (s.w || 2) * 4.5);
+    const [ax, ay] = s.a, [bx, by] = s.b; const ang = Math.atan2(by - ay, bx - ax); const L = Math.max(8 + (s.w || 2) * 2, (s.w || 2) * 4.5);
     ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx - Math.cos(ang) * L * .7, by - Math.sin(ang) * L * .7); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx - L * Math.cos(ang - .45), by - L * Math.sin(ang - .45)); ctx.lineTo(bx - L * Math.cos(ang + .45), by - L * Math.sin(ang + .45)); ctx.closePath(); ctx.fill();
   }
   else if (s.t === 'tag') {
-    const b = tagBox(s); const ink = contrastInk(s.c); ctx.save();
-    rrPath(ctx, b.x, b.y, b.w, b.h, b.h * .22); ctx.fillStyle = s.c; ctx.fill(); ctx.lineWidth = Math.max(1.5, s.fs * .07); ctx.strokeStyle = ink; ctx.stroke();
-    ctx.fillStyle = ink; ctx.font = `bold ${s.fs}px Arial, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(s.txt, s.x, s.y + s.fs * .04);
+    // Estilos: box (recuadro, por defecto), pill (cápsula), pin (marcador con punta), outline (solo borde), plain (solo texto).
+    // s.o = opacidad del fondo (0-1) en box, pill y pin.
+    const b = tagBox(s); const ink = contrastInk(s.c); const sty = s.st || 'box'; const op = s.o == null ? 1 : s.o; const ty = b.cy + s.fs * .04;
+    ctx.save(); ctx.font = `bold ${s.fs}px Arial, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+    if (sty === 'plain') {
+      ctx.lineWidth = Math.max(2, s.fs * .18); ctx.strokeStyle = ink; ctx.strokeText(s.txt, s.x, ty); ctx.fillStyle = s.c; ctx.fillText(s.txt, s.x, ty);
+    } else if (sty === 'outline') {
+      rrPath(ctx, b.x, b.y, b.w, b.h, b.h * .22); ctx.lineWidth = Math.max(2, s.fs * .09); ctx.strokeStyle = ink; ctx.lineWidth += Math.max(1, s.fs * .05); ctx.stroke();
+      ctx.lineWidth = Math.max(2, s.fs * .09); ctx.strokeStyle = s.c; ctx.stroke();
+      ctx.lineWidth = Math.max(2, s.fs * .16); ctx.strokeStyle = ink; ctx.strokeText(s.txt, s.x, ty); ctx.fillStyle = s.c; ctx.fillText(s.txt, s.x, ty);
+    } else {
+      if (sty === 'pill') rrPath(ctx, b.x, b.y, b.w, b.h, b.h / 2); else if (sty === 'pin') pinPath(ctx, b, s); else rrPath(ctx, b.x, b.y, b.w, b.h, b.h * .22);
+      ctx.globalAlpha = op; ctx.fillStyle = s.c; ctx.fill(); ctx.globalAlpha = 1;
+      ctx.lineWidth = Math.max(1.5, s.fs * .07); ctx.strokeStyle = op < 1 ? s.c : ink; ctx.stroke();
+      if (op < 1) { ctx.lineWidth = Math.max(2, s.fs * .16); ctx.strokeStyle = s.c; ctx.strokeText(s.txt, s.x, ty); } // con fondo transparente, el texto lleva contorno para leerse
+      ctx.fillStyle = ink; ctx.fillText(s.txt, s.x, ty);
+    }
     ctx.restore();
   }
 }
@@ -4653,8 +4683,10 @@ async function openSketch(path = 'croquis') {
    Al guardar se genera además una versión «aplanada» (marcas.img) para verla, imprimirla e
    incluirla en las copias (…_foto_01_marcada). Si falta, se muestra el original. */
 const MK_W = 1200;
-const MK_SIZES = [3, 6, 10, 16];
-const MK_FS = { 3: 30, 6: 44, 10: 60, 16: 84 };
+const MK_SIZES = [1, 2, 3, 6, 10, 16];
+const MK_FS = { 1: 16, 2: 22, 3: 30, 6: 44, 10: 60, 16: 84 };
+const MK_TAG_STYLES = [['box', 'Recuadro'], ['pill', 'Cápsula'], ['pin', 'Marcador con punta'], ['outline', 'Solo borde'], ['plain', 'Solo texto']];
+const MK_OPAC = [[1, '100 %'], [.75, '75 %'], [.5, '50 %'], [.25, '25 %']];
 const MK_COLORS = ['#FFD400', '#E53935', '#FFFFFF', '#111111', '#00B8D4', '#43A047'];
 const hasMarks = f => !!(f && f.marcas && Array.isArray(f.marcas.strokes) && f.marcas.strokes.length);
 // Imagen que se muestra e imprime: la marcada si existe en este dispositivo; si no, el original.
@@ -4687,20 +4719,23 @@ async function openPhotoMarks(path, i) {
   // Si la proporción de referencia no coincide (p. ej. foto cambiada por otra), se reescalan las marcas.
   const sx = prev && prev.w ? W / prev.w : 1, sy = prev && prev.h ? H / prev.h : 1;
   const scaleS = s => { const o = clone(s); if (o.pts) o.pts = o.pts.map(([x, y]) => [x * sx, y * sy]); if (o.a) o.a = [o.a[0] * sx, o.a[1] * sy]; if (o.b) o.b = [o.b[0] * sx, o.b[1] * sy]; if (typeof o.x === 'number') { o.x *= sx; o.y *= sy; } return o; };
-  const st = { strokes: (prev && prev.strokes ? prev.strokes : []).map(s => (sx === 1 && sy === 1) ? clone(s) : scaleS(s)), redo: [], tool: 'pen', color: '#FFD400', size: 6, draft: null, penOnly: false };
+  // undo/redo guardan estados completos de los trazos, para poder deshacer también un movimiento.
+  const st = { strokes: (prev && prev.strokes ? prev.strokes : []).map(s => (sx === 1 && sy === 1) ? clone(s) : scaleS(s)), undo: [], redo: [], tool: 'pen', color: '#FFD400', size: 6, draft: null, penOnly: false, tagStyle: 'box', tagOp: 1 };
   const labels = markLabels(r, p);
   const arch = (IMG_META.get(f.img) || {}).arch;
-  const tools = [['pen', 'pencil', 'Lápiz'], ['arrow', 'arrow', 'Flecha'], ['line', 'line', 'Línea'], ['ellipse', 'ellipse', 'Elipse'], ['rect', 'rect', 'Rectángulo'], ['tag', 'tag', 'Etiqueta de UE'], ['text', 'text', 'Texto'], ['eraser', 'eraser', 'Borrar trazo']];
+  const tools = [['pen', 'pencil', 'Lápiz'], ['arrow', 'arrow', 'Flecha'], ['line', 'line', 'Línea'], ['ellipse', 'ellipse', 'Elipse'], ['rect', 'rect', 'Rectángulo'], ['tag', 'tag', 'Etiqueta de UE'], ['text', 'text', 'Texto'], ['move', 'move', 'Mover: arrastre una etiqueta, un texto o un trazo'], ['eraser', 'eraser', 'Borrar trazo']];
   const body = `<div class="skbar">
     <div class="seg sm" id="mk-tools" role="group" aria-label="Herramienta">${tools.map(([k, ico, l]) => `<button type="button" data-tool="${k}" class="${k === 'pen' ? 'on' : ''}" title="${l}" aria-label="${l}">${ic(ico, 17)}</button>`).join('')}</div>
     <label class="mk-lab" title="Etiqueta que se coloca con la herramienta «Etiqueta de UE»">${ic('tag', 15)}<select id="mk-label" aria-label="Etiqueta de UE">${labels.map(l => `<option>${esc(l)}</option>`).join('')}<option value="">Escribir otra…</option></select></label>
+    <label class="mk-lab" title="Estilo de la etiqueta">Estilo<select id="mk-style" aria-label="Estilo de la etiqueta">${MK_TAG_STYLES.map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select></label>
+    <label class="mk-lab" title="Opacidad del fondo de la etiqueta (recuadro, cápsula y marcador)">Fondo<select id="mk-op" aria-label="Opacidad del fondo de la etiqueta">${MK_OPAC.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></label>
     <div class="mk-sw" id="mk-colors" role="group" aria-label="Color">${MK_COLORS.map(c => `<button type="button" data-color="${c}" class="${c === st.color ? 'on' : ''}" style="background:${c}" title="${c}" aria-label="Color ${c}"></button>`).join('')}<input type="color" id="mk-color" value="${st.color}" aria-label="Otro color"></div>
     <div class="seg sm" id="mk-size" role="group" aria-label="Grosor y tamaño de letra">${MK_SIZES.map((n, k) => `<button type="button" data-size="${n}" class="${n === st.size ? 'on' : ''}">${k + 1}</button>`).join('')}</div>
     <button type="button" class="btn s ic" id="mk-undo" aria-label="Deshacer" title="Deshacer">${ic('undo', 16)}</button><button type="button" class="btn s ic" id="mk-redo" aria-label="Rehacer" title="Rehacer">${ic('redo', 16)}</button>
     <label class="chk" for="mk-pen" title="Ignora los toques del dedo o la palma: solo dibuja el lápiz"><input type="checkbox" id="mk-pen"><span>Solo lápiz</span></label>
     <button type="button" class="btn s d" id="mk-clear">Quitar todas</button></div>
     <div class="mkwrap" id="mk-wrap"><canvas id="mk-cv" width="${W}" height="${H}" aria-label="Foto para marcar"></canvas></div>
-    <p class="note" style="margin:8px 0 0;font-size:12.5px">Las marcas se guardan aparte: <b>la foto original no cambia</b> y se pueden editar o quitar cuando quiera. Para colocar una etiqueta de UE, elíjala en la lista y toque la foto.${arch ? ' <b>Esta foto está archivada</b>: en este dispositivo solo queda una miniatura, así que la versión marcada se generará con poca resolución.' : ''}</p>`;
+    <p class="note" style="margin:8px 0 0;font-size:12.5px">Las marcas se guardan aparte: <b>la foto original no cambia</b> y se pueden editar o quitar cuando quiera. Para colocar una etiqueta de UE, elíjala en la lista y toque la foto; con la herramienta <b>Mover</b> (flechas en cruz) puede arrastrarla después.${arch ? ' <b>Esta foto está archivada</b>: en este dispositivo solo queda una miniatura, así que la versión marcada se generará con poca resolución.' : ''}</p>`;
   openModal({
     title: `Marcar foto · ${r.type === 'muraria' ? 'Cata ' + fu(r.num) : 'UE ' + fu(r.ue)}`, cls: 'full sketch', body,
     actions: [{ label: 'Cancelar' }, {
@@ -4728,17 +4763,25 @@ async function openPhotoMarks(path, i) {
       const pos = e => { const b = cv.getBoundingClientRect(); if (!(b.width > 0 && b.height > 0)) return null; const q = [(e.clientX - b.left) * W / b.width, (e.clientY - b.top) * H / b.height]; return q.every(Number.isFinite) ? q : null; };
       const fs = () => MK_FS[st.size] || 44;
       let down = null;
-      const push = s => { st.strokes.push(s); st.redo = []; paint(); upd(); };
+      // Guarda el estado anterior antes de cada cambio (para Deshacer).
+      const commit = () => { st.undo.push(clone(st.strokes)); if (st.undo.length > 150) st.undo.shift(); st.redo = []; };
+      const push = s => { commit(); st.strokes.push(s); paint(); upd(); };
+      const newTag = (x, y, txt) => { const s = { t: 'tag', c: st.color, fs: fs(), x, y, txt }; if (st.tagStyle !== 'box') s.st = st.tagStyle; if (st.tagOp < 1) s.o = st.tagOp; return s; };
       cv.addEventListener('pointerdown', e => {
         if (st.penOnly && e.pointerType === 'touch') return;
         e.preventDefault(); const q = pos(e); if (!q) return; const [x, y] = q;
         if (st.tool === 'text') { askAt(x, y, e, v => push({ t: 'text', h: 1, c: st.color, fs: fs(), x, y, txt: v })); return; }
         if (st.tool === 'tag') {
           const v = $('#mk-label', root).value;
-          if (v) push({ t: 'tag', c: st.color, fs: fs(), x, y, txt: v }); else askAt(x, y, e, t => push({ t: 'tag', c: st.color, fs: fs(), x, y, txt: t }));
+          if (v) push(newTag(x, y, v)); else askAt(x, y, e, t => push(newTag(x, y, t)));
           return;
         }
         try { cv.setPointerCapture(e.pointerId); } catch (err) { }
+        if (st.tool === 'move') {
+          // Se mueve lo que esté más arriba bajo el dedo (lo último dibujado).
+          for (let k = st.strokes.length - 1; k >= 0; k--) if (strokeHit(st.strokes[k], x, y, 18)) { down = { move: k, last: [x, y], before: clone(st.strokes), moved: false }; cv.style.cursor = 'grabbing'; break; }
+          return;
+        }
         if (st.tool === 'eraser') { down = { erase: true }; eraseAt(x, y); return; }
         down = { a: [x, y] };
         st.draft = st.tool === 'pen' ? { t: 'pen', c: st.color, w: st.size, pts: [[x, y]] } : { t: st.tool, c: st.color, w: st.size, a: [x, y], b: [x, y] };
@@ -4746,13 +4789,22 @@ async function openPhotoMarks(path, i) {
       });
       cv.addEventListener('pointermove', e => {
         if (!down) return; const q = pos(e); if (!q) return; const [x, y] = q;
+        if (down.move !== undefined) {
+          const dx = x - down.last[0], dy = y - down.last[1]; if (!dx && !dy) return;
+          moveStroke(st.strokes[down.move], dx, dy); down.last = [x, y]; down.moved = true; paint(); return;
+        }
         if (down.erase) { eraseAt(x, y); return; }
         if (st.tool === 'pen') st.draft.pts.push([x, y]); else st.draft.b = [x, y];
         paint();
       });
-      const end = () => { if (!down) return; if (!down.erase && st.draft) { const d = st.draft; const ok = d.t === 'pen' || Math.hypot(d.b[0] - d.a[0], d.b[1] - d.a[1]) > 4; if (ok) { st.strokes.push(d); st.redo = []; } } st.draft = null; down = null; paint(); upd(); };
+      const end = () => {
+        if (!down) return;
+        if (down.move !== undefined) { if (down.moved) { st.undo.push(down.before); if (st.undo.length > 150) st.undo.shift(); st.redo = []; } cv.style.cursor = 'grab'; }
+        else if (!down.erase && st.draft) { const d = st.draft; const ok = d.t === 'pen' || Math.hypot(d.b[0] - d.a[0], d.b[1] - d.a[1]) > 4; if (ok) { commit(); st.strokes.push(d); } }
+        st.draft = null; down = null; paint(); upd();
+      };
       cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
-      function eraseAt(x, y) { for (let k = st.strokes.length - 1; k >= 0; k--) if (strokeHit(st.strokes[k], x, y, 16)) { st.redo.push(st.strokes.splice(k, 1)[0]); paint(); upd(); break; } }
+      function eraseAt(x, y) { for (let k = st.strokes.length - 1; k >= 0; k--) if (strokeHit(st.strokes[k], x, y, 16)) { commit(); st.strokes.splice(k, 1); paint(); upd(); break; } }
       function askAt(x, y, e, done) {
         const wb = wrap.getBoundingClientRect(); const inp = document.createElement('input'); inp.type = 'text'; inp.className = 'ov'; inp.setAttribute('aria-label', 'Texto de la marca');
         inp.style.left = Math.max(0, Math.min(e.clientX - wb.left, wb.width - 210)) + 'px'; inp.style.top = (e.clientY - wb.top - 12) + 'px'; wrap.appendChild(inp); setTimeout(() => inp.focus(), 0);
@@ -4760,18 +4812,21 @@ async function openPhotoMarks(path, i) {
         inp.onkeydown = ev => { if (ev.key === 'Enter') { ev.preventDefault(); inp.onblur = null; fin(); } else if (ev.key === 'Escape') { inp.onblur = null; inp.remove(); } };
         inp.onblur = fin;
       }
-      function upd() { $('#mk-undo', root).disabled = !st.strokes.length; $('#mk-redo', root).disabled = !st.redo.length; }
+      function upd() { $('#mk-undo', root).disabled = !st.undo.length; $('#mk-redo', root).disabled = !st.redo.length; }
       upd();
-      $('#mk-tools', root).onclick = e => { const b = e.target.closest('[data-tool]'); if (!b) return; st.tool = b.dataset.tool; $$('#mk-tools button', root).forEach(x => x.classList.toggle('on', x === b)); cv.style.cursor = st.tool === 'eraser' ? 'pointer' : (st.tool === 'text' || st.tool === 'tag') ? 'copy' : 'crosshair'; };
-      $('#mk-label', root).onchange = () => { const b = $('#mk-tools [data-tool="tag"]', root); if (b) b.click(); };
+      $('#mk-tools', root).onclick = e => { const b = e.target.closest('[data-tool]'); if (!b) return; st.tool = b.dataset.tool; $$('#mk-tools button', root).forEach(x => x.classList.toggle('on', x === b)); cv.style.cursor = st.tool === 'eraser' ? 'pointer' : st.tool === 'move' ? 'grab' : (st.tool === 'text' || st.tool === 'tag') ? 'copy' : 'crosshair'; };
+      const toTag = () => { const b = $('#mk-tools [data-tool="tag"]', root); if (b) b.click(); };
+      $('#mk-label', root).onchange = toTag;
+      $('#mk-style', root).onchange = e => { st.tagStyle = e.target.value; $('#mk-op', root).disabled = st.tagStyle === 'outline' || st.tagStyle === 'plain'; toTag(); };
+      $('#mk-op', root).onchange = e => { st.tagOp = +e.target.value; toTag(); };
       const setColor = c => { st.color = c; $$('#mk-colors [data-color]', root).forEach(x => x.classList.toggle('on', x.dataset.color.toLowerCase() === c.toLowerCase())); };
       $('#mk-colors', root).onclick = e => { const b = e.target.closest('[data-color]'); if (b) { setColor(b.dataset.color); $('#mk-color', root).value = b.dataset.color; } };
       $('#mk-color', root).oninput = e => setColor(e.target.value);
       $('#mk-size', root).onclick = e => { const b = e.target.closest('[data-size]'); if (!b) return; st.size = +b.dataset.size; $$('#mk-size button', root).forEach(x => x.classList.toggle('on', x === b)); };
       $('#mk-pen', root).onchange = e => { st.penOnly = e.target.checked; };
-      $('#mk-undo', root).onclick = () => { if (st.strokes.length) { st.redo.push(st.strokes.pop()); paint(); upd(); } };
-      $('#mk-redo', root).onclick = () => { if (st.redo.length) { st.strokes.push(st.redo.pop()); paint(); upd(); } };
-      $('#mk-clear', root).onclick = () => { if (!st.strokes.length) return; st.redo = st.strokes.slice().reverse(); st.strokes = []; paint(); upd(); };
+      $('#mk-undo', root).onclick = () => { if (st.undo.length) { st.redo.push(clone(st.strokes)); st.strokes = st.undo.pop(); paint(); upd(); } };
+      $('#mk-redo', root).onclick = () => { if (st.redo.length) { st.undo.push(clone(st.strokes)); st.strokes = st.redo.pop(); paint(); upd(); } };
+      $('#mk-clear', root).onclick = () => { if (!st.strokes.length) return; commit(); st.strokes = []; paint(); upd(); };
     }
   });
 }
@@ -5155,7 +5210,7 @@ const ACT = {
 };
 Object.assign(ACT, ESQ_ACT);
 let lastCreate = 0;
-const APP_VERSION = '3.0';
+const APP_VERSION = '3.1';
 function createRec(type, ue) {
   const now = Date.now(); if (now - lastCreate < 600) return; lastCreate = now; // un doble toque no crea dos fichas
   const p = P(); const r = newRecord(type, p); if (ue && r.type !== 'muraria') r.ue = ue;
