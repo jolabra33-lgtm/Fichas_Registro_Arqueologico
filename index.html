@@ -320,6 +320,12 @@ input[type=number]{font-family:var(--f-mono)}
 .skbar input[type=color]{width:38px;height:34px;padding:2px;border:1px solid var(--line-2);border-radius:var(--r);background:var(--surface)}
 .skwrap{position:relative;border:1px solid var(--line-2);border-radius:var(--r);background:#fff;overflow:hidden;touch-action:none;display:flex;justify-content:center}
 .skwrap canvas{display:block;height:min(calc(100vh - 290px),calc((100vw - 90px)*2/3));width:auto;max-width:100%;aspect-ratio:3/2;cursor:crosshair;touch-action:none}
+.mkwrap{position:relative;border:1px solid var(--line-2);border-radius:var(--r);background:#1d2023;overflow:hidden;touch-action:none;display:flex;justify-content:center;align-items:center}
+.mkwrap canvas{display:block;max-width:100%;max-height:calc(100vh - 300px);width:auto;height:auto;cursor:crosshair;touch-action:none}
+.mkwrap input.ov{position:absolute;min-height:0;width:200px;padding:2px 4px;background:#fffbe0;color:#000;border:1px solid #888;border-radius:2px}
+.mk-lab{display:flex;align-items:center;gap:4px}.mk-lab select{min-height:32px;padding:2px 6px;font-size:13.5px;max-width:150px}
+.mk-sw{display:flex;align-items:center;gap:4px}.mk-sw button{width:24px;height:24px;border-radius:50%;border:2px solid var(--line-2);padding:0;cursor:pointer}.mk-sw button.on{outline:2px solid var(--accent);outline-offset:2px}.mk-sw input[type=color]{width:30px;height:28px;padding:0;border:0;background:none}
+.ph .im .mkb{position:absolute;left:6px;top:6px;background:rgba(0,0,0,.66);color:#fff;font-size:11.5px;font-weight:600;padding:2px 7px;border-radius:10px;pointer-events:none}
 .skwrap input.ov{position:absolute;min-height:0;width:200px;padding:2px 4px;background:#fffbe0;color:#000;border:1px solid #888;border-radius:2px}
 .lightbox{display:flex;align-items:center;justify-content:center;max-height:70vh}
 .lightbox img{max-width:100%;max-height:70vh;object-fit:contain}
@@ -517,6 +523,7 @@ const ICO = {
   fit: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>', text: '<path d="M5 6V4h14v2M12 4v16M9 20h6"/>',
   line: '<path d="M5 19L19 5"/>', rect: '<rect x="4" y="6" width="16" height="12"/>', ellipse: '<ellipse cx="12" cy="12" rx="9" ry="6"/>',
   grid: '<path d="M3 3h18v18H3zM9 3v18M15 3v18M3 9h18M3 15h18"/>', eraser: '<path d="M20 20H9L4 15l9-9 7 7-7 7"/>',
+  arrow: '<path d="M5 19L18 6"/><path d="M10 5h9v9"/>', tag: '<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8" r="1.4"/>', mark: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15l4-5 3 3 3-2"/><path d="M14 3l2 2"/>',
   book: '<path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/>',
   link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
   star: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>'
@@ -1187,7 +1194,7 @@ function setList(rec, path, list) { if (SINGLE.has(path)) setPath(rec, path, lis
 function photoGrid(path, o = {}) {
   const r = o.rec || CUR(); const list = getList(r, path); const max = SINGLE.has(path) ? 1 : (o.max || 99);
   const pid = path.replace(/\W/g, '_');
-  return `<div class="photos" data-photos="${path}" data-max="${max}">${list.map((f, i) => `<div class="ph"><button type="button" class="im" data-act="lightbox" data-path="${path}" data-i="${i}" aria-label="Ampliar"><img src="${imgSrc(f.img)}" alt="${esc(f.cap || 'Fotografía')}"></button><input type="text" id="cap_${pid}_${i}" data-cap="${path}" data-i="${i}" value="${esc(f.cap || '')}" placeholder="Pie de foto (nº, orientación, escala)" aria-label="Pie de foto"><div class="acts"><button type="button" class="btn s" data-act="photoswap" data-path="${path}" data-i="${i}">Cambiar</button><button type="button" class="btn s d ic" data-act="photodel" data-path="${path}" data-i="${i}" aria-label="Quitar imagen">${ic('trash', 15)}</button></div></div>`).join('')}${list.length < max ? `<button type="button" class="drop" data-act="photoadd" data-path="${path}">${ic('camera', 26)}<span>${o.label || 'Añadir fotografía'}</span><small class="faint">o arrastre archivos aquí</small></button>` : ''}</div>`;
+  return `<div class="photos" data-photos="${path}" data-max="${max}">${list.map((f, i) => `<div class="ph"><button type="button" class="im" data-act="lightbox" data-path="${path}" data-i="${i}" aria-label="Ampliar"><img src="${imgSrc(phImg(f))}" alt="${esc(f.cap || 'Fotografía')}">${hasMarks(f) ? '<span class="mkb">Marcada</span>' : ''}</button><input type="text" id="cap_${pid}_${i}" data-cap="${path}" data-i="${i}" value="${esc(f.cap || '')}" placeholder="Pie de foto (nº, orientación, escala)" aria-label="Pie de foto"><div class="acts"><button type="button" class="btn s" data-act="photomark" data-path="${path}" data-i="${i}" title="Dibujar y poner etiquetas de UE sobre la foto">${ic('mark', 15)}Marcar</button><button type="button" class="btn s" data-act="photoswap" data-path="${path}" data-i="${i}">Cambiar</button><button type="button" class="btn s d ic" data-act="photodel" data-path="${path}" data-i="${i}" aria-label="Quitar imagen">${ic('trash', 15)}</button></div></div>`).join('')}${list.length < max ? `<button type="button" class="drop" data-act="photoadd" data-path="${path}">${ic('camera', 26)}<span>${o.label || 'Añadir fotografía'}</span><small class="faint">o arrastre archivos aquí</small></button>` : ''}</div>`;
 }
 
 /* =====================  MATRIZ DE HARRIS  ===================== */
@@ -1659,6 +1666,7 @@ function backupPhotoNames(p) {
   const num = n => safe(fu(n, p));
   const LBL = { fotos: 'foto', localizacionImg: 'localizacion', fotoPlanta: 'planta', fotoSeccion: 'seccion', harrisImg: 'harris', croquis: 'croquis', croqDisp: 'croquis_disposicion' };
   const label = path => {          // path: claves desde la ficha hasta el identificador, p. ej. ['fotos', 2, 'img']
+    const mi = path.indexOf('marcas'); if (mi >= 0) return label(path.slice(0, mi)) + '_marcada'; // versión con marcas: UE_0001_foto_01_marcada
     const parts = []; let idx = null;
     path.forEach(k => {
       if (typeof k === 'number') { if (idx === null) idx = k; return; }
@@ -2027,7 +2035,7 @@ const BACKUP_HELP = {
       <li>Mueva los archivos a una carpeta del proyecto (por ejemplo, <i>Copias Santa Clara</i>). Cada archivo lleva fecha y hora en el nombre (<i>…-2026-11-18-172046.zip</i>), así que no se pisan aunque haga varias copias el mismo día y llévela a un lugar seguro: ordenador, pendrive o nube.</li>
     </ol>
     <div class="help-note"><b>Importante:</b> no borre ninguna copia incremental, porque cada una lleva fotos que no están en las demás. Si hace dos incrementales seguidas, la segunda saldrá casi vacía (la primera ya llevaba las fotos): guarde las dos. Haga además una copia completa de vez en cuando (por ejemplo, una por semana).</div>
-    <div class="help-note"><b>¿Qué hay dentro del .zip?</b> Si lo descomprime, las fotos están ordenadas en una carpeta por unidad, con nombres que dicen de dónde es cada una: <i>fotos/UE_0001/UE_0001_foto_01.webp</i>, <i>UE_0001_croquis</i>, <i>UE_0001_localizacion</i>, <i>CATA_0001_planta</i> o <i>MAT_</i>(sigla)<i>_foto_01</i> para los materiales. No renombre ni mueva nada dentro del .zip si luego lo va a importar: guarde el archivo tal como se descargó.</div>
+    <div class="help-note"><b>¿Qué hay dentro del .zip?</b> Si lo descomprime, las fotos están ordenadas en una carpeta por unidad, con nombres que dicen de dónde es cada una: <i>fotos/UE_0001/UE_0001_foto_01.webp</i>, <i>UE_0001_croquis</i>, <i>UE_0001_localizacion</i>, <i>CATA_0001_planta</i> o <i>MAT_</i>(sigla)<i>_foto_01</i> para los materiales. Las fotos marcadas van además como <i>…_foto_01_marcada</i>, junto al original. No renombre ni mueva nada dentro del .zip si luego lo va a importar: guarde el archivo tal como se descargó.</div>
     <div class="help-note"><b>¿El iPad se queda sin espacio?</b> Cuando las copias estén a salvo, use <b>«Archivar fotos ya respaldadas»</b> (en Mantenimiento): las fotos que ya están en una copia se quedan como miniatura en el dispositivo.</div>` },
   importar: { t: 'Importar', h: `
     <p style="margin:0 0 8px"><b>Para qué:</b> pasar el proyecto a otro dispositivo, o que el director reciba el trabajo diario de cada tableta.</p>
@@ -4237,8 +4245,8 @@ function prel(r) {
 }
 function pfotos(r, h = 64) {
   const f = photoList(r, 'fotos'); const loc = photoList(r, 'localizacionImg');
-  const inner = !f.length ? '' : f.length === 1 ? `<div class="fr" style="height:${h}mm">${pim(f[0].img)}</div>${f[0].cap ? `<div class="cap">${esc(f[0].cap)}</div>` : ''}` : `<div class="ph2" style="height:${h}mm">${f.slice(0, 4).map(x => `<div class="fr">${pim(x.img)}</div>`).join('')}</div><div class="cap">${f.length > 4 ? `+${f.length - 4} fotografías en el anexo` : 'Pies de foto en el anexo fotográfico'}</div>`;
-  return `<div class="two"><div class="bx"><div class="lab" style="text-align:center">Foto</div>${inner || `<div style="height:${h}mm"></div>`}</div><div class="bx"><div class="lab" style="text-align:center">Localización</div><div class="fr" style="height:${h}mm">${loc.length ? pim(loc[0].img) : ''}</div></div></div>`;
+  const inner = !f.length ? '' : f.length === 1 ? `<div class="fr" style="height:${h}mm">${pim(phImg(f[0]))}</div>${f[0].cap ? `<div class="cap">${esc(f[0].cap)}</div>` : ''}` : `<div class="ph2" style="height:${h}mm">${f.slice(0, 4).map(x => `<div class="fr">${pim(phImg(x))}</div>`).join('')}</div><div class="cap">${f.length > 4 ? `+${f.length - 4} fotografías en el anexo` : 'Pies de foto en el anexo fotográfico'}</div>`;
+  return `<div class="two"><div class="bx"><div class="lab" style="text-align:center">Foto</div>${inner || `<div style="height:${h}mm"></div>`}</div><div class="bx"><div class="lab" style="text-align:center">Localización</div><div class="fr" style="height:${h}mm">${loc.length ? pim(phImg(loc[0])) : ''}</div></div></div>`;
 }
 function pcroquis(r, h = 100, letters = false) {
   const c = r.croquis && r.croquis.img && imgSrc(r.croquis.img);
@@ -4247,7 +4255,7 @@ function pcroquis(r, h = 100, letters = false) {
 }
 function pannex(r) {
   const f = photoList(r, 'fotos'); if (f.length < 2) return '';
-  return `<div class="sheet"><div class="hd"><img class="lg" src="${LOGO}" alt=""><h1>${r.type === 'muraria' ? 'CATA MURARIA Nº ' + esc(fu(r.num)) : 'UE ' + esc(fu(r.ue))} · Anexo fotográfico</h1></div><div class="annex">${f.map((x, i) => `<div><div class="fr">${pim(x.img)}</div><div class="cap">${i + 1}. ${esc(x.cap || '')}</div></div>`).join('')}</div></div>`;
+  return `<div class="sheet"><div class="hd"><img class="lg" src="${LOGO}" alt=""><h1>${r.type === 'muraria' ? 'CATA MURARIA Nº ' + esc(fu(r.num)) : 'UE ' + esc(fu(r.ue))} · Anexo fotográfico</h1></div><div class="annex">${f.map((x, i) => `<div><div class="fr">${pim(phImg(x))}</div><div class="cap">${i + 1}. ${esc(x.cap || '')}</div></div>`).join('')}</div></div>`;
 }
 function matsPrint(r) {
   return `<div class="mat">${MATERIALES.map(g => `<div class="g"><h4>${g.g}</h4>${g.n.map(([n, l]) => `<div class="i">${cb(r.mats[n])}${n} ${esc(l)}</div>`).join('')}</div>`).join('')}<div class="g"><h4>Otras cerámicas</h4>${(r.matsOtras.filter(Boolean).length ? r.matsOtras.filter(Boolean) : ['', '', '']).map(m => `<div class="i">${cb(!!m)}${esc(m)}</div>`).join('')}</div></div>`;
@@ -4313,8 +4321,8 @@ function sheetMuraria(r, p) {
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.6mm"><div>
     <div class="bx"><div class="r" style="margin:0 0 1.4mm">${pc('Ubicación', r.ubicacion)}</div><div class="r" style="margin:0 0 1.4mm">${pc('Cronología principal', r.cronPrincipal)}</div><div class="r" style="margin:0">${pc('Cronologías secundarias', r.cronSecundarias)}</div></div>
     <div class="bx nb"><div class="lab">Descripción:</div><div class="txt" style="min-height:58mm">${esc(r.descripcion)}</div><div class="lab" style="margin-top:3mm">Interpretación:</div><div class="txt" style="min-height:34mm">${esc(r.interpretacion)}</div></div>
-  </div><div>${box('Foto planta', pl.length ? pim(pl[0].img) : '', 76)}${box('Foto sección', se.length ? pim(se[0].img) : '', 76)}</div></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.6mm"><div class="bx" style="margin:0"><div class="lab">Harris:</div><div class="hs fr" style="min-height:56mm">${svg || (hi.length ? pim(hi[0].img) : '')}</div></div><div class="bx" style="margin:0"><div class="lab" style="text-align:center">Foto</div><div class="ph2" style="height:56mm">${fo.slice(0, 2).map(x => `<div><div class="fr" style="height:50mm">${pim(x.img)}</div><div class="cap">${esc(x.cap || '')}</div></div>`).join('')}</div></div></div></div>${pannex(r)}`;
+  </div><div>${box('Foto planta', pl.length ? pim(phImg(pl[0])) : '', 76)}${box('Foto sección', se.length ? pim(phImg(se[0])) : '', 76)}</div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.6mm"><div class="bx" style="margin:0"><div class="lab">Harris:</div><div class="hs fr" style="min-height:56mm">${svg || (hi.length ? pim(phImg(hi[0])) : '')}</div></div><div class="bx" style="margin:0"><div class="lab" style="text-align:center">Foto</div><div class="ph2" style="height:56mm">${fo.slice(0, 2).map(x => `<div><div class="fr" style="height:50mm">${pim(phImg(x))}</div><div class="cap">${esc(x.cap || '')}</div></div>`).join('')}</div></div></div></div>${pannex(r)}`;
 }
 function sheetsFor(r, p, o) { return r.type === 'estrato' ? sheetEstrato(r, p, o) : r.type === 'estructura' ? sheetEstructura(r, p, o) : r.type === 'esqueleto' ? sheetEsqueleto(r, p, o) : sheetMuraria(r, p); }
 
@@ -4522,15 +4530,41 @@ function strokeHit(s, x, y, tol) {
   if (s.t === 'rect') { const [x1, y1] = s.a, [x2, y2] = s.b; return [[x1, y1, x2, y1], [x2, y1, x2, y2], [x2, y2, x1, y2], [x1, y2, x1, y1]].some(q => segDist(x, y, q[0], q[1], q[2], q[3]) < tol); }
   if (s.t === 'ellipse') { const cx = (s.a[0] + s.b[0]) / 2, cy = (s.a[1] + s.b[1]) / 2, rx = Math.abs(s.b[0] - s.a[0]) / 2, ry = Math.abs(s.b[1] - s.a[1]) / 2; if (!rx || !ry) return false; const d = Math.hypot((x - cx) / rx, (y - cy) / ry); return Math.abs(d - 1) * Math.min(rx, ry) < tol; }
   if (s.t === 'text') return x > s.x - 4 && x < s.x + s.txt.length * s.fs * .6 + 4 && y > s.y - s.fs && y < s.y + 6;
+  if (s.t === 'arrow') return segDist(x, y, s.a[0], s.a[1], s.b[0], s.b[1]) < tol;
+  if (s.t === 'tag') { const b = tagBox(s); return x > b.x - tol && x < b.x + b.w + tol && y > b.y - tol && y < b.y + b.h + tol; }
   return false;
 }
+/* Marcas sobre fotos: flecha, texto con contorno y etiqueta de UE (recuadro relleno). */
+const contrastInk = c => { const m = /^#?([0-9a-f]{6})$/i.exec(c || ''); if (!m) return '#ffffff'; const n = parseInt(m[1], 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) > 150 ? '#111111' : '#ffffff'; };
+let _mctx = null;
+function tagBox(s) {
+  if (!_mctx) _mctx = document.createElement('canvas').getContext('2d');
+  _mctx.font = `bold ${s.fs}px Arial, sans-serif`; const w = _mctx.measureText(s.txt).width; const pad = s.fs * .38;
+  return { x: s.x - w / 2 - pad, y: s.y - s.fs / 2 - pad * .7, w: w + pad * 2, h: s.fs + pad * 1.4 };
+}
+function rrPath(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r); ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h); ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r); ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath(); }
 function drawStroke(ctx, s) {
   ctx.strokeStyle = s.c; ctx.fillStyle = s.c; ctx.lineWidth = s.w || 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   if (s.t === 'pen') { ctx.beginPath(); s.pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); if (s.pts.length === 1) ctx.lineTo(s.pts[0][0] + .01, s.pts[0][1]); ctx.stroke(); }
   else if (s.t === 'line') { ctx.beginPath(); ctx.moveTo(...s.a); ctx.lineTo(...s.b); ctx.stroke(); }
   else if (s.t === 'rect') ctx.strokeRect(s.a[0], s.a[1], s.b[0] - s.a[0], s.b[1] - s.a[1]);
   else if (s.t === 'ellipse') { ctx.beginPath(); ctx.ellipse((s.a[0] + s.b[0]) / 2, (s.a[1] + s.b[1]) / 2, Math.abs(s.b[0] - s.a[0]) / 2, Math.abs(s.b[1] - s.a[1]) / 2, 0, 0, Math.PI * 2); ctx.stroke(); }
-  else if (s.t === 'text') { ctx.font = `${s.fs}px Arial, sans-serif`; ctx.textBaseline = 'alphabetic'; ctx.fillText(s.txt, s.x, s.y); }
+  else if (s.t === 'text') {
+    ctx.font = `${s.h ? 'bold ' : ''}${s.fs}px Arial, sans-serif`; ctx.textBaseline = 'alphabetic';
+    if (s.h) { ctx.save(); ctx.lineWidth = Math.max(2, s.fs * .18); ctx.strokeStyle = contrastInk(s.c); ctx.lineJoin = 'round'; ctx.strokeText(s.txt, s.x, s.y); ctx.restore(); }
+    ctx.fillText(s.txt, s.x, s.y);
+  }
+  else if (s.t === 'arrow') {
+    const [ax, ay] = s.a, [bx, by] = s.b; const ang = Math.atan2(by - ay, bx - ax); const L = Math.max(14, (s.w || 2) * 4.5);
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx - Math.cos(ang) * L * .7, by - Math.sin(ang) * L * .7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx - L * Math.cos(ang - .45), by - L * Math.sin(ang - .45)); ctx.lineTo(bx - L * Math.cos(ang + .45), by - L * Math.sin(ang + .45)); ctx.closePath(); ctx.fill();
+  }
+  else if (s.t === 'tag') {
+    const b = tagBox(s); const ink = contrastInk(s.c); ctx.save();
+    rrPath(ctx, b.x, b.y, b.w, b.h, b.h * .22); ctx.fillStyle = s.c; ctx.fill(); ctx.lineWidth = Math.max(1.5, s.fs * .07); ctx.strokeStyle = ink; ctx.stroke();
+    ctx.fillStyle = ink; ctx.font = `bold ${s.fs}px Arial, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(s.txt, s.x, s.y + s.fs * .04);
+    ctx.restore();
+  }
 }
 async function openSketch(path = 'croquis') {
   const r = CUR(); if (!r) return; const cur = getPath(r, path) || {};
@@ -4612,6 +4646,135 @@ async function openSketch(path = 'croquis') {
   function render(c, g) { window._skRender(c, g); }
   function paint() { window._skPaint && window._skPaint(); }
 }
+/* =====================  MARCAS SOBRE FOTOGRAFÍAS  =====================
+   Modelo no destructivo: la foto original no se toca. Las marcas se guardan dentro de la entrada
+   de la foto como trazos vectoriales en un sistema de referencia de 1200 unidades de ancho
+   (marcas.w × marcas.h, misma proporción que la foto), compatible con el compactador de croquis.
+   Al guardar se genera además una versión «aplanada» (marcas.img) para verla, imprimirla e
+   incluirla en las copias (…_foto_01_marcada). Si falta, se muestra el original. */
+const MK_W = 1200;
+const MK_SIZES = [3, 6, 10, 16];
+const MK_FS = { 3: 30, 6: 44, 10: 60, 16: 84 };
+const MK_COLORS = ['#FFD400', '#E53935', '#FFFFFF', '#111111', '#00B8D4', '#43A047'];
+const hasMarks = f => !!(f && f.marcas && Array.isArray(f.marcas.strokes) && f.marcas.strokes.length);
+// Imagen que se muestra e imprime: la marcada si existe en este dispositivo; si no, el original.
+const phImg = f => (hasMarks(f) && f.marcas.img && imgSrc(f.marcas.img)) ? f.marcas.img : (f && f.img);
+function loadImgEl(src) { return new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error('No se pudo cargar la imagen')); im.src = src; }); }
+async function flattenMarks(im, marcas) {
+  const W0 = im.naturalWidth, H0 = im.naturalHeight; const c = document.createElement('canvas'); c.width = W0; c.height = H0;
+  const g = c.getContext('2d'); g.drawImage(im, 0, 0, W0, H0); g.save(); g.scale(W0 / marcas.w, H0 / marcas.h); marcas.strokes.forEach(s => drawStroke(g, s)); g.restore();
+  return putImage(c);
+}
+async function dropImage(id) {
+  if (!id) return; const u = IMG.get(id); if (u && typeof u === 'string' && u.startsWith('blob:')) { try { URL.revokeObjectURL(u); } catch (e) { } }
+  IMG.delete(id); RAW_BLOBS.delete(id); IMG_META.delete(id); try { await idbDel('images', id); } catch (e) { }
+}
+// Etiquetas propuestas: la propia UE, sus relacionadas y el resto del proyecto.
+function markLabels(r, p) {
+  const own = r.type === 'muraria' ? [] : [r.ue]; const rel = new Set();
+  if (r.rel) Object.values(r.rel).forEach(a => (a || []).forEach(n => rel.add(n)));
+  if (r.type === 'muraria') (r.ues || []).forEach(n => rel.add(n));
+  const all = p.records.filter(x => x.type !== 'muraria' && x.ue != null).map(x => x.ue);
+  const seen = new Set(); const out = [];
+  [...own, ...[...rel].sort(numAsc), ...all.sort(numAsc)].forEach(n => { if (n == null || seen.has(n)) return; seen.add(n); out.push('UE ' + fu(n, p)); });
+  return out;
+}
+async function openPhotoMarks(path, i) {
+  const r = CUR(), p = P(); if (!r) return; const list = getList(r, path); const f = list[i]; if (!f || !f.img || !imgSrc(f.img)) return;
+  let im; try { im = await loadImgEl(imgSrc(f.img)); } catch (e) { toast('No se pudo abrir la foto.', 'err'); return; }
+  const W = MK_W, H = Math.max(1, Math.round(MK_W * im.naturalHeight / im.naturalWidth));
+  const prev = f.marcas || null;
+  // Si la proporción de referencia no coincide (p. ej. foto cambiada por otra), se reescalan las marcas.
+  const sx = prev && prev.w ? W / prev.w : 1, sy = prev && prev.h ? H / prev.h : 1;
+  const scaleS = s => { const o = clone(s); if (o.pts) o.pts = o.pts.map(([x, y]) => [x * sx, y * sy]); if (o.a) o.a = [o.a[0] * sx, o.a[1] * sy]; if (o.b) o.b = [o.b[0] * sx, o.b[1] * sy]; if (typeof o.x === 'number') { o.x *= sx; o.y *= sy; } return o; };
+  const st = { strokes: (prev && prev.strokes ? prev.strokes : []).map(s => (sx === 1 && sy === 1) ? clone(s) : scaleS(s)), redo: [], tool: 'pen', color: '#FFD400', size: 6, draft: null, penOnly: false };
+  const labels = markLabels(r, p);
+  const arch = (IMG_META.get(f.img) || {}).arch;
+  const tools = [['pen', 'pencil', 'Lápiz'], ['arrow', 'arrow', 'Flecha'], ['line', 'line', 'Línea'], ['ellipse', 'ellipse', 'Elipse'], ['rect', 'rect', 'Rectángulo'], ['tag', 'tag', 'Etiqueta de UE'], ['text', 'text', 'Texto'], ['eraser', 'eraser', 'Borrar trazo']];
+  const body = `<div class="skbar">
+    <div class="seg sm" id="mk-tools" role="group" aria-label="Herramienta">${tools.map(([k, ico, l]) => `<button type="button" data-tool="${k}" class="${k === 'pen' ? 'on' : ''}" title="${l}" aria-label="${l}">${ic(ico, 17)}</button>`).join('')}</div>
+    <label class="mk-lab" title="Etiqueta que se coloca con la herramienta «Etiqueta de UE»">${ic('tag', 15)}<select id="mk-label" aria-label="Etiqueta de UE">${labels.map(l => `<option>${esc(l)}</option>`).join('')}<option value="">Escribir otra…</option></select></label>
+    <div class="mk-sw" id="mk-colors" role="group" aria-label="Color">${MK_COLORS.map(c => `<button type="button" data-color="${c}" class="${c === st.color ? 'on' : ''}" style="background:${c}" title="${c}" aria-label="Color ${c}"></button>`).join('')}<input type="color" id="mk-color" value="${st.color}" aria-label="Otro color"></div>
+    <div class="seg sm" id="mk-size" role="group" aria-label="Grosor y tamaño de letra">${MK_SIZES.map((n, k) => `<button type="button" data-size="${n}" class="${n === st.size ? 'on' : ''}">${k + 1}</button>`).join('')}</div>
+    <button type="button" class="btn s ic" id="mk-undo" aria-label="Deshacer" title="Deshacer">${ic('undo', 16)}</button><button type="button" class="btn s ic" id="mk-redo" aria-label="Rehacer" title="Rehacer">${ic('redo', 16)}</button>
+    <label class="chk" for="mk-pen" title="Ignora los toques del dedo o la palma: solo dibuja el lápiz"><input type="checkbox" id="mk-pen"><span>Solo lápiz</span></label>
+    <button type="button" class="btn s d" id="mk-clear">Quitar todas</button></div>
+    <div class="mkwrap" id="mk-wrap"><canvas id="mk-cv" width="${W}" height="${H}" aria-label="Foto para marcar"></canvas></div>
+    <p class="note" style="margin:8px 0 0;font-size:12.5px">Las marcas se guardan aparte: <b>la foto original no cambia</b> y se pueden editar o quitar cuando quiera. Para colocar una etiqueta de UE, elíjala en la lista y toque la foto.${arch ? ' <b>Esta foto está archivada</b>: en este dispositivo solo queda una miniatura, así que la versión marcada se generará con poca resolución.' : ''}</p>`;
+  openModal({
+    title: `Marcar foto · ${r.type === 'muraria' ? 'Cata ' + fu(r.num) : 'UE ' + fu(r.ue)}`, cls: 'full sketch', body,
+    actions: [{ label: 'Cancelar' }, {
+      label: 'Guardar marcas', cls: 'p', fn: async () => {
+        const L = getList(r, path).slice(); const cur = L[i]; if (!cur || cur.img !== f.img) { toast('La foto ha cambiado mientras se marcaba; no se guardan las marcas.', 'err'); return; }
+        const oldFlat = cur.marcas && cur.marcas.img;
+        const okNum = v => Array.isArray(v) ? v.every(okNum) : Number.isFinite(v);
+        st.strokes = st.strokes.filter(s => (!s.pts || okNum(s.pts)) && (!s.a || okNum(s.a)) && (!s.b || okNum(s.b)) && (s.x === undefined || okNum([s.x, s.y])));
+        if (!st.strokes.length) { const { marcas, ...rest } = cur; L[i] = rest; }
+        else {
+          const marcas = { w: W, h: H, strokes: st.strokes.map(compactStroke) };
+          try { marcas.img = await flattenMarks(im, marcas); } catch (e) { console.error(e); toast('No se pudo generar la foto marcada; se guardan las marcas.', 'warn'); }
+          L[i] = { ...cur, marcas };
+        }
+        setList(r, path, L); touch(r);
+        if (oldFlat && !JSON.stringify(p, stripPriv).includes(oldFlat)) await dropImage(oldFlat);
+        refreshEditor(); toast(st.strokes.length ? 'Marcas guardadas. La foto original no se ha modificado.' : 'Marcas quitadas.');
+      }
+    }],
+    onOpen: root => {
+      const cv = $('#mk-cv', root), ctx = cv.getContext('2d'), wrap = $('#mk-wrap', root);
+      const paint = () => { ctx.clearRect(0, 0, W, H); ctx.drawImage(im, 0, 0, W, H); st.strokes.forEach(s => drawStroke(ctx, s)); if (st.draft) drawStroke(ctx, st.draft); };
+      paint();
+      // Si el lienzo aún no tiene tamaño en pantalla, el toque se ignora (evita trazos con coordenadas no válidas).
+      const pos = e => { const b = cv.getBoundingClientRect(); if (!(b.width > 0 && b.height > 0)) return null; const q = [(e.clientX - b.left) * W / b.width, (e.clientY - b.top) * H / b.height]; return q.every(Number.isFinite) ? q : null; };
+      const fs = () => MK_FS[st.size] || 44;
+      let down = null;
+      const push = s => { st.strokes.push(s); st.redo = []; paint(); upd(); };
+      cv.addEventListener('pointerdown', e => {
+        if (st.penOnly && e.pointerType === 'touch') return;
+        e.preventDefault(); const q = pos(e); if (!q) return; const [x, y] = q;
+        if (st.tool === 'text') { askAt(x, y, e, v => push({ t: 'text', h: 1, c: st.color, fs: fs(), x, y, txt: v })); return; }
+        if (st.tool === 'tag') {
+          const v = $('#mk-label', root).value;
+          if (v) push({ t: 'tag', c: st.color, fs: fs(), x, y, txt: v }); else askAt(x, y, e, t => push({ t: 'tag', c: st.color, fs: fs(), x, y, txt: t }));
+          return;
+        }
+        try { cv.setPointerCapture(e.pointerId); } catch (err) { }
+        if (st.tool === 'eraser') { down = { erase: true }; eraseAt(x, y); return; }
+        down = { a: [x, y] };
+        st.draft = st.tool === 'pen' ? { t: 'pen', c: st.color, w: st.size, pts: [[x, y]] } : { t: st.tool, c: st.color, w: st.size, a: [x, y], b: [x, y] };
+        paint();
+      });
+      cv.addEventListener('pointermove', e => {
+        if (!down) return; const q = pos(e); if (!q) return; const [x, y] = q;
+        if (down.erase) { eraseAt(x, y); return; }
+        if (st.tool === 'pen') st.draft.pts.push([x, y]); else st.draft.b = [x, y];
+        paint();
+      });
+      const end = () => { if (!down) return; if (!down.erase && st.draft) { const d = st.draft; const ok = d.t === 'pen' || Math.hypot(d.b[0] - d.a[0], d.b[1] - d.a[1]) > 4; if (ok) { st.strokes.push(d); st.redo = []; } } st.draft = null; down = null; paint(); upd(); };
+      cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
+      function eraseAt(x, y) { for (let k = st.strokes.length - 1; k >= 0; k--) if (strokeHit(st.strokes[k], x, y, 16)) { st.redo.push(st.strokes.splice(k, 1)[0]); paint(); upd(); break; } }
+      function askAt(x, y, e, done) {
+        const wb = wrap.getBoundingClientRect(); const inp = document.createElement('input'); inp.type = 'text'; inp.className = 'ov'; inp.setAttribute('aria-label', 'Texto de la marca');
+        inp.style.left = Math.max(0, Math.min(e.clientX - wb.left, wb.width - 210)) + 'px'; inp.style.top = (e.clientY - wb.top - 12) + 'px'; wrap.appendChild(inp); setTimeout(() => inp.focus(), 0);
+        const fin = () => { const v = inp.value.trim(); inp.remove(); if (v) done(v); };
+        inp.onkeydown = ev => { if (ev.key === 'Enter') { ev.preventDefault(); inp.onblur = null; fin(); } else if (ev.key === 'Escape') { inp.onblur = null; inp.remove(); } };
+        inp.onblur = fin;
+      }
+      function upd() { $('#mk-undo', root).disabled = !st.strokes.length; $('#mk-redo', root).disabled = !st.redo.length; }
+      upd();
+      $('#mk-tools', root).onclick = e => { const b = e.target.closest('[data-tool]'); if (!b) return; st.tool = b.dataset.tool; $$('#mk-tools button', root).forEach(x => x.classList.toggle('on', x === b)); cv.style.cursor = st.tool === 'eraser' ? 'pointer' : (st.tool === 'text' || st.tool === 'tag') ? 'copy' : 'crosshair'; };
+      $('#mk-label', root).onchange = () => { const b = $('#mk-tools [data-tool="tag"]', root); if (b) b.click(); };
+      const setColor = c => { st.color = c; $$('#mk-colors [data-color]', root).forEach(x => x.classList.toggle('on', x.dataset.color.toLowerCase() === c.toLowerCase())); };
+      $('#mk-colors', root).onclick = e => { const b = e.target.closest('[data-color]'); if (b) { setColor(b.dataset.color); $('#mk-color', root).value = b.dataset.color; } };
+      $('#mk-color', root).oninput = e => setColor(e.target.value);
+      $('#mk-size', root).onclick = e => { const b = e.target.closest('[data-size]'); if (!b) return; st.size = +b.dataset.size; $$('#mk-size button', root).forEach(x => x.classList.toggle('on', x === b)); };
+      $('#mk-pen', root).onchange = e => { st.penOnly = e.target.checked; };
+      $('#mk-undo', root).onclick = () => { if (st.strokes.length) { st.redo.push(st.strokes.pop()); paint(); upd(); } };
+      $('#mk-redo', root).onclick = () => { if (st.redo.length) { st.strokes.push(st.redo.pop()); paint(); upd(); } };
+      $('#mk-clear', root).onclick = () => { if (!st.strokes.length) return; st.redo = st.strokes.slice().reverse(); st.strokes = []; paint(); upd(); };
+    }
+  });
+}
 function refreshEditor() { const y = window.scrollY; renderAll(); window.scrollTo(0, y); }
 
 /* =====================  ACCIONES  ===================== */
@@ -4684,7 +4847,7 @@ async function addPhotos(path, files, replaceIdx) {
     try {
       const blob = await processImageFile(f);
       const id = await putImage(blob);
-      if (replaceIdx != null) { list[replaceIdx] = { ...list[replaceIdx], img: id }; break; }
+      if (replaceIdx != null) { const { marcas, ...rest } = list[replaceIdx]; list[replaceIdx] = { ...rest, img: id }; break; } // las marcas eran de la foto anterior
       if (SINGLE.has(path)) { list.length = 0; }
       list.push({ img: id, cap: '' });
       n++;
@@ -4809,7 +4972,8 @@ const ACT = {
   photoadd(el) { const path = el.dataset.path; pickFiles('image/*', !SINGLE.has(path)).then(fs => fs.length && addPhotos(path, fs)); },
   photoswap(el) { const path = el.dataset.path, i = +el.dataset.i; pickFiles('image/*', false).then(fs => fs.length && addPhotos(path, fs, i)); },
   photodel(el) { const r = CUR(); const list = getList(r, el.dataset.path).slice(); list.splice(+el.dataset.i, 1); setList(r, el.dataset.path, list); touch(r); refreshEditor(); },
-  lightbox(el) { const f = getList(CUR(), el.dataset.path)[+el.dataset.i]; if (f) lightbox(f.img, f.cap); },
+  lightbox(el) { const f = getList(CUR(), el.dataset.path)[+el.dataset.i]; if (f) lightbox(phImg(f), f.cap); },
+  photomark(el) { openPhotoMarks(el.dataset.path, +el.dataset.i); },
   sketch(el) { openSketch(el.dataset.path || 'croquis'); },
   async sketchup() { const f = (await pickFiles('image/*'))[0]; if (!f) return; try { const blob = await processImageFile(f, 1800, .85); const id = await putImage(blob); const r = CUR(); r.croquis = { img: id, bg: id, strokes: [] }; touch(r); refreshEditor(); } catch (e) { toast('No se pudo procesar la imagen.', 'err'); } },
   sketchdel(el) { const r = CUR(); setPath(r, (el && el.dataset.path) || 'croquis', null); touch(r); refreshEditor(); },
@@ -4991,7 +5155,7 @@ const ACT = {
 };
 Object.assign(ACT, ESQ_ACT);
 let lastCreate = 0;
-const APP_VERSION = '2.9';
+const APP_VERSION = '3.0';
 function createRec(type, ue) {
   const now = Date.now(); if (now - lastCreate < 600) return; lastCreate = now; // un doble toque no crea dos fichas
   const p = P(); const r = newRecord(type, p); if (ue && r.type !== 'muraria') r.ue = ue;
